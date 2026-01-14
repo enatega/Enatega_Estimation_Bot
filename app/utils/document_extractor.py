@@ -68,13 +68,35 @@ class DocumentExtractor:
         
         return text_content.strip()
     
+    def extract_txt_text(self, file_path: str) -> str:
+        """Extract text from TXT file"""
+        # Handle both absolute and relative paths
+        if os.path.isabs(file_path):
+            full_path = file_path
+        else:
+            full_path = os.path.join(self.data_dir, file_path)
+        text_content = ""
+        
+        try:
+            with open(full_path, 'r', encoding='utf-8') as file:
+                text_content = file.read()
+        except Exception as e:
+            logger.error(f"Failed to extract from {file_path}: {e}")
+        
+        return text_content.strip()
+    
     def extract_all_documents(self) -> Dict[str, str]:
         """Extract text from all documents"""
         extracted_data = {}
         
-        # Extract PDFs
+        # Extract TXT files (feature estimates)
+        for txt_file in ["Estimates.txt"]:
+            if os.path.exists(os.path.join(self.data_dir, txt_file)):
+                logger.info(f"Extracting {txt_file}...")
+                extracted_data[txt_file] = self.extract_txt_text(txt_file)
+        
+        # Extract PDFs (excluding Estimation Calculator Data - using Estimates.txt instead)
         for pdf_file in [
-            "Estimation Calculator Data.pdf",
             "content (3).pdf",
             "content (4).pdf",
             "content (5).pdf",
@@ -95,8 +117,8 @@ class DocumentExtractor:
         return extracted_data
     
     def get_chatgpt_examples(self, extracted_data: Dict[str, str]) -> str:
-        """Extract ChatGPT conversation examples from Estimation Calculator Data.pdf"""
-        chatgpt_file = "Estimation Calculator Data.pdf"
-        if chatgpt_file in extracted_data:
-            return extracted_data[chatgpt_file]
+        """Get Estimates.txt as primary reference (replaces Estimation Calculator Data)"""
+        estimates_file = "Estimates.txt"
+        if estimates_file in extracted_data:
+            return extracted_data[estimates_file]
         return ""

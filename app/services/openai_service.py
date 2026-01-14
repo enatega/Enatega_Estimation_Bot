@@ -55,87 +55,90 @@ DO NOT:
         return system_prompt
     
     def _extract_exact_estimate_from_context(self, query: str, context: str) -> Optional[Dict]:
-        """Try to extract exact hour range from context before using AI"""
-        if not context:
+        """Disabled - now using intelligent AI analysis instead of regex extraction"""
+        # This method is kept for compatibility but always returns None
+        # We now rely on AI to intelligently analyze all context including Estimates.txt
+        return None
+    
+    def _extract_from_estimates_txt(self, query: str, context: str) -> Optional[Dict]:
+        """Use AI to intelligently extract feature estimate from Estimates.txt"""
+        if not context or not self.client:
             return None
         
-        query_lower = query.lower()
-        # Look for patterns like "38-42 hours", "38 to 42 hours", "Estimated Time: 38-42"
-        patterns = [
-            r'(\d+)\s*[-–—]\s*(\d+)\s*hours?',
-            r'(\d+)\s+to\s+(\d+)\s*hours?',
-            r'estimated\s+time[:\s]+(\d+)\s*[-–—]\s*(\d+)',
-            r'time\s+estimate[:\s]+(\d+)\s*[-–—]\s*(\d+)',
-            r'(\d+)\s*[-–—]\s*(\d+)\s*hrs?',
-        ]
-        
-        for pattern in patterns:
-            matches = re.finditer(pattern, context, re.IGNORECASE)
-            for match in matches:
-                min_hours = int(match.group(1))
-                max_hours = int(match.group(2))
-                
-                # Check if this estimate is relevant to the query
-                # Look at surrounding text (100 chars before/after)
-                start = max(0, match.start() - 100)
-                end = min(len(context), match.end() + 100)
-                surrounding = context[start:end].lower()
-                
-                # Check if query keywords appear near the estimate
-                query_keywords = [w for w in query_lower.split() if len(w) > 3]
-                if any(keyword in surrounding for keyword in query_keywords):
-                    # Extract feature name from context
-                    feature_name = self._extract_feature_name(query, surrounding)
+        # Let AI analyze Estimates.txt and extract relevant feature
+        try:
+            # Extract Estimates.txt section from context
+            estimates_section = ""
+            if "ESTIMATES.TXT" in context:
+                parts = context.split("===")
+                for i, part in enumerate(parts):
+                    if "ESTIMATES.TXT" in part and i + 1 < len(parts):
+                        estimates_section = parts[i + 1]
+                        break
+            else:
+                estimates_section = context[:3000]
+            
+            prompt = f"""Analyze the query and find the matching feature in Estimates.txt.
+
+Query: {query}
+
+Estimates.txt Content:
+{estimates_section[:3000] if estimates_section else context[:2000]}
+
+Find the feature that matches the query. Look intelligently for:
+- "rating and review" or "rider rating" → find review/rating features
+- "payment" or "HYP payment" → find payment gateway features
+- Similar semantic matches
+
+Return JSON:
+{{"name": "Feature Name from Estimates.txt", "hours": <number>}}
+
+Return ONLY valid JSON."""
+            
+            response = self.client.chat.completions.create(
+                model=settings.OPENAI_MODEL,
+                messages=[
+                    {"role": "system", "content": "You are a feature matcher. Return only valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.1,
+                max_tokens=500
+            )
+            
+            content = response.choices[0].message.content.strip()
+            content = re.sub(r'```json\s*', '', content)
+            content = re.sub(r'```\s*', '', content)
+            
+            try:
+                result = json.loads(content)
+                if "hours" in result and "name" in result:
+                    hours = int(result["hours"])
+                    min_hours = max(1, int(hours * 0.85))
+                    max_hours = int(hours * 1.15)
                     
-                    logger.info(f"Found exact estimate in context: {min_hours}-{max_hours} hours for {feature_name}")
+                    logger.info(f"AI found feature '{result['name']}' in Estimates.txt: {hours} hrs")
                     return {
-                        "name": feature_name,
-                        "description": f"Extracted from context",
+                        "name": result["name"],
+                        "description": f"Based on Estimates.txt",
                         "base_time_hours_min": min_hours,
                         "base_time_hours_max": max_hours,
                         "complexity_level": "medium",
-                        "category": "Integration"
+                        "category": "Feature Development"
                     }
+            except:
+                pass
+        except Exception as e:
+            logger.debug(f"AI extraction from Estimates.txt failed: {e}")
         
         return None
     
     def _extract_feature_name(self, query: str, context_snippet: str) -> str:
-        """Extract feature name from query or context intelligently"""
-        # Try to extract from context snippet first (more accurate)
-        context_lower = context_snippet.lower()
-        
-        # Look for feature names in context (e.g., "HYP Payment", "User Authentication")
-        # Common patterns in context
-        if "payment" in context_lower:
-            # Try to find the payment method name from context
-            payment_match = re.search(r'(\w+)\s+payment', context_lower)
-            if payment_match:
-                payment_name = payment_match.group(1).title()
-                return f"{payment_name} Payment Integration"
-            return "Payment Integration"
-        elif "authentication" in context_lower or "auth" in context_lower:
-            return "User Authentication"
-        elif "dashboard" in context_lower:
-            return "Dashboard"
-        
-        # Fallback: extract from query
-        query_lower = query.lower()
-        if "payment" in query_lower:
-            # Extract payment method name from query if present
-            words = query.split()
-            for i, word in enumerate(words):
-                if word.lower() == "payment" and i > 0:
-                    method = words[i-1].title()
-                    return f"{method} Payment Integration"
-            return "Payment Integration"
-        elif "authentication" in query_lower or "auth" in query_lower:
-            return "User Authentication"
-        elif "dashboard" in query_lower:
-            return "Dashboard"
-        
-        # Default: use first few meaningful words of query
-        words = [w for w in query.split() if w.lower() not in ["i", "want", "to", "add", "how", "much", "it", "take"]][:4]
-        return " ".join(words).title() if words else "Feature Development"
+        """Extract feature name intelligently - no hardcoded patterns"""
+        # Simple extraction - AI handles intelligent naming in main extraction
+        words = [w for w in query.split() if w.lower() not in ["i", "want", "to", "add", "how", "much", "it", "take", "in", "enatega"]]
+        if words:
+            return " ".join(words[:5]).title()
+        return "Feature Development"
     
     def extract_features_from_query(self, query: str, context: str = "") -> List[Dict]:
         """Use AI to extract features from natural language query based on document context"""
@@ -143,8 +146,8 @@ DO NOT:
             return []
         
         try:
-            # Get relevant examples from documents
-            examples = self.knowledge_base.get_chatgpt_examples()[:2000] if self.knowledge_base else ""
+            # Get Estimates.txt as primary reference
+            estimates_txt = self.knowledge_base.get_chatgpt_examples()[:4000] if self.knowledge_base else ""
             
             # Get comprehensive context from vector store - get MORE results for better coverage
             vector_context = ""
@@ -162,32 +165,32 @@ DO NOT:
             except:
                 pass
             
-            # Combine ALL contexts comprehensively - include everything for complete understanding
+            # Combine ALL contexts comprehensively - prioritize Estimates.txt
             context_parts = []
             
-            # Primary context from vector search (most relevant)
+            # PRIMARY: Estimates.txt (feature estimates reference)
+            if estimates_txt:
+                context_parts.append(f"=== ESTIMATES.TXT (PRIMARY REFERENCE - Feature Estimates) ===\n{estimates_txt[:4000]}")
+            
+            # Secondary: Primary context from vector search (most relevant)
             if vector_context:
-                context_parts.append(f"=== PRIMARY CONTEXT (Most Relevant to Query) ===\n{vector_context[:5000]}")
+                context_parts.append(f"\n=== PRIMARY CONTEXT (Most Relevant to Query) ===\n{vector_context[:4000]}")
             
             # Additional broader context (different perspective)
-            if broader_context and broader_context != vector_context:
+            if broader_context and broader_context != vector_context and broader_context != estimates_txt:
                 context_parts.append(f"\n=== ADDITIONAL CONTEXT (Broader View) ===\n{broader_context[:3000]}")
             
-            # Example conversations (estimation patterns)
-            if examples and examples not in vector_context:
-                context_parts.append(f"\n=== ESTIMATION EXAMPLES (Reference Patterns) ===\n{examples[:2000]}")
-            
             # Original context if provided
-            if context and context not in vector_context and context not in broader_context:
+            if context and context not in vector_context and context not in broader_context and context != estimates_txt:
                 context_parts.append(f"\n=== SUPPLEMENTARY CONTEXT ===\n{context[:2000]}")
             
             # Combine everything for comprehensive analysis
-            combined_context = "\n\n".join(context_parts) if context_parts else (context[:3000] if context else examples[:3000])
+            combined_context = "\n\n".join(context_parts) if context_parts else (context[:3000] if context else estimates_txt[:3000])
             
-            logger.info(f"Combined context length: {len(combined_context)} characters from {len(context_parts)} sources for intelligent analysis")
+            logger.info(f"Combined context length: {len(combined_context)} characters from {len(context_parts)} sources (Estimates.txt prioritized)")
             
             # Use intelligent AI analysis instead of exact extraction
-            prompt = f"""You are an expert estimation analyst. Analyze the requirements and generate intelligent time estimates by considering ALL available context including team capabilities, project specifics, and document data.
+            prompt = f"""You are an expert estimation analyst. Analyze the requirements and generate intelligent time estimates by studying ALL available context.
 
 Requirements: {query}
 
@@ -197,44 +200,45 @@ COMPREHENSIVE CONTEXT FROM ALL DOCUMENTS (study ALL of this carefully):
 ANALYSIS PROCESS:
 1. STUDY the requirements thoroughly - understand what needs to be built
 
-2. ANALYZE the context comprehensively:
+2. ANALYZE Estimates.txt (PRIMARY REFERENCE):
+   - Search for features that match the requirements
+   - Look for similar features if exact match not found
+   - Use Estimates.txt hours as reference for your estimates
+   - Example: "rating and review" → look for "Review", "Rating" features
+   - Example: "HYP payment" → look for payment gateway features
+
+3. ANALYZE other context comprehensively:
    - Team composition and capabilities (e.g., "15 full-stack developers", "2 DevOps engineers", "3 QA specialists")
    - Team size and skill levels mentioned
    - Project complexity factors from documents
    - Technology stack and infrastructure details
    - Similar features or projects mentioned in context
-   - Any relevant estimation patterns or examples
 
-3. GENERATE intelligent estimates by considering:
+4. GENERATE intelligent estimates by considering:
+   - Estimates.txt values: If feature exists, use those hours as base reference (create ±15% range)
    - Team capabilities: How many developers? What skills? What's their capacity?
    - Project complexity: Is this simple, medium, or complex based on context?
-   - Similar work: Are there similar features/projects in context? Use them as reference
+   - Similar work: Are there similar features in Estimates.txt? Use them as reference
    - Technology stack: What technologies are mentioned? Factor in learning curve if needed
    - Infrastructure: Consider DevOps, QA, design team availability from context
    - Realistic timelines: Based on team size and capabilities from context
 
-4. DO NOT just copy exact numbers from context. Instead:
-   - Use context as REFERENCE to understand team capabilities and project scope
-   - Consider if the team is large (15+ developers) vs small
-   - Factor in parallel work capabilities
-   - Consider team expertise level from context
-   - Generate estimates that make sense for THIS team and THIS project
-
 5. Extract features explicitly mentioned in: "{query}"
 
 6. Provide realistic time ranges that reflect:
+   - Estimates.txt values (if available) as primary reference
    - Team capabilities from context
    - Project complexity
    - Similar work patterns from context
    - Realistic development timelines
 
-Return COMPLETE JSON array:
+Return COMPLETE JSON array (ensure valid JSON, all brackets closed):
 [
   {{
     "name": "Feature Name",
     "description": "Description based on requirements and context analysis",
-    "base_time_hours_min": <min_hours - consider team capabilities>,
-    "base_time_hours_max": <max_hours - consider team capabilities>,
+    "base_time_hours_min": <min_hours>,
+    "base_time_hours_max": <max_hours>,
     "complexity_level": "simple|medium|complex",
     "category": "Category"
   }}
@@ -244,22 +248,24 @@ Return COMPLETE JSON array:
 
 YOUR ROLE:
 - Analyze requirements intelligently
-- Study ALL context comprehensively (team, project, documents)
+- Study ALL context comprehensively (Estimates.txt, team, project, documents)
 - Generate intelligent estimates based on comprehensive understanding
-- Consider team capabilities, project complexity, and realistic timelines
+- Use Estimates.txt as PRIMARY REFERENCE for feature estimates
 
 ESTIMATION APPROACH:
-1. Study team composition from context (size, skills, roles)
-2. Understand project complexity and requirements
-3. Reference similar work from context as guidance
-4. Generate estimates that reflect:
+1. Search Estimates.txt for matching features (PRIMARY REFERENCE)
+2. Study team composition from context (size, skills, roles)
+3. Understand project complexity and requirements
+4. Reference similar work from Estimates.txt and context as guidance
+5. Generate estimates that reflect:
+   - Estimates.txt values (if feature exists) as base reference
    - Team capabilities and capacity
    - Project complexity
    - Realistic development timelines
    - Parallel work possibilities
 
-5. DO NOT just extract exact numbers - ANALYZE and ESTIMATE intelligently
-6. Consider ALL factors: team size, skills, infrastructure, QA, design, etc.
+6. ANALYZE intelligently - use Estimates.txt as reference, not just copy numbers
+7. Consider ALL factors: Estimates.txt, team size, skills, infrastructure, QA, design, etc.
 
 Return ONLY valid JSON array, no explanations.
 Format: [{"name": "...", "description": "...", "base_time_hours_min": <min>, "base_time_hours_max": <max>, "complexity_level": "...", "category": "..."}]"""
@@ -331,8 +337,16 @@ Format: [{"name": "...", "description": "...", "base_time_hours_min": <min>, "ba
             except:
                 pass
             
-            # Strategy 4: If all parsing fails, try to extract features manually from query
-            logger.warning(f"Could not parse JSON, attempting fallback extraction. Content preview: {content[:200]}")
+            # Strategy 4: Try to extract from Estimates.txt directly if JSON parsing fails
+            logger.warning(f"Could not parse JSON, attempting to extract from Estimates.txt. Content preview: {content[:200]}")
+            
+            # Try to find feature in Estimates.txt context
+            estimates_match = self._extract_from_estimates_txt(query, combined_context)
+            if estimates_match:
+                logger.info(f"Found feature in Estimates.txt: {estimates_match['base_time_hours_min']}-{estimates_match['base_time_hours_max']} hours")
+                return [estimates_match]
+            
+            # Try fallback extraction
             fallback_result = self._fallback_feature_extraction(query, combined_context)
             if fallback_result:
                 return fallback_result
@@ -343,6 +357,14 @@ Format: [{"name": "...", "description": "...", "base_time_hours_min": <min>, "ba
             
         except Exception as e:
             logger.error(f"Error extracting features: {e}", exc_info=True)
+            
+            # Try Estimates.txt extraction first
+            estimates_match = self._extract_from_estimates_txt(query, combined_context)
+            if estimates_match:
+                logger.info(f"Found feature in Estimates.txt during error handling: {estimates_match['base_time_hours_min']}-{estimates_match['base_time_hours_max']} hours")
+                return [estimates_match]
+            
+            # Try fallback extraction
             fallback_result = self._fallback_feature_extraction(query, combined_context)
             if fallback_result:
                 return fallback_result
@@ -397,21 +419,29 @@ Format: [{"name": "...", "description": "...", "base_time_hours_min": <min>, "ba
             return []
         
         try:
-            prompt = f"""Analyze the requirements and generate intelligent time estimates by studying ALL context.
+            # First try Estimates.txt extraction
+            estimates_match = self._extract_from_estimates_txt(query, context)
+            if estimates_match:
+                return [estimates_match]
+            
+            prompt = f"""Analyze the requirements and generate intelligent time estimates by studying ALL context, especially Estimates.txt.
 
 Query: {query}
 
-COMPREHENSIVE CONTEXT (study ALL of this):
+COMPREHENSIVE CONTEXT (study ALL of this, prioritize Estimates.txt):
 {context[:4000] if context else "No context available - use your knowledge"}
 
 ANALYSIS INSTRUCTIONS:
 1. Study the requirements - what needs to be built?
-2. Analyze context comprehensively:
+2. Search Estimates.txt in context for matching features (PRIMARY REFERENCE)
+3. Analyze context comprehensively:
+   - Estimates.txt feature estimates
    - Team composition and capabilities (size, skills, roles)
    - Project complexity and requirements
    - Similar work or patterns from context
    - Technology stack and infrastructure
-3. Generate intelligent estimates considering:
+4. Generate intelligent estimates considering:
+   - Estimates.txt values (if feature exists) as base reference
    - Team capabilities from context
    - Project complexity
    - Realistic development timelines

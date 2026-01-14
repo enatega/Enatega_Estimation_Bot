@@ -1,0 +1,173 @@
+1. Customer App & Web – Feature Estimates
+Discovery & UI
+
+New Discovery Page (videos, UI redesign, dynamic cards, AI recommendations): 55 hrs
+
+LUMI AI – Customer Chatbot
+
+LUMI AI Chatbot (complete): 150 hrs
+
+Bottom navigation & Lumi button: 10 hrs
+
+Chat UI (ChatGPT-style): 12 hrs
+
+Conversational ordering flow: 25 hrs
+
+Backend APIs & DB memory layer: 18 hrs
+
+Speech-to-Text (EN + AR): 10 hrs
+
+Text-to-Speech (EN + AR): 10 hrs
+
+Speech-to-Speech (voice loop): 15 hrs
+
+Safe language / profanity filtering: 8 hrs
+
+Suggestion logic & carousels: 12 hrs
+
+AI data training, updates & DB sync: 30 hrs
+
+Behavior, Notifications & Engagement
+
+AI Behavior Tracking & Notification Engine: 50 hrs
+
+Event tracking setup: 12 hrs
+
+Backend refactoring (legacy issues): 18 hrs
+
+Notification scheduler: 10 hrs
+
+AI-based triggers & personalization: 10 hrs
+
+Reviews & Ratings
+
+Post-Delivery Review Popup (Customer, Vendor, Rider, Admin): 34 hrs
+
+Customer UI: 8 hrs
+
+Admin integration: 6 hrs
+
+Store panel feedback view: 5 hrs
+
+Rider rating & tip handling: 5 hrs
+
+Backend workflows & triggers: 10 hrs
+
+Payments, Wallet & Loyalty
+
+Cancellation & Refunds with Wallet: 52 hrs
+
+Cancel UI & triggers: 10 hrs
+
+Refund logic (multi-payment): 12 hrs
+
+Wallet creation & rules: 15 hrs
+
+Admin/store refund review: 10 hrs
+
+Rider impact handling: 5 hrs
+
+QPay Payment Gateway (Cyber Gateway): 33 hrs
+
+Credit/Debit integration: 10 hrs
+
+Apple Pay & Google Pay via QPay: 10 hrs
+
+Security, tokens & compliance: 8 hrs
+
+Refund API & admin logs: 5 hrs
+
+Loyalty & Referral Program: 32 hrs
+
+Referral code logic: 10 hrs
+
+Gift card flow: 10 hrs
+
+Wallet redemption logic: 12 hrs
+
+Customer & Web Subtotal: 406 hrs
+
+2. Vendor (Store) Side – Feature Estimates
+
+Offer Management (discounts, free delivery, expiry): 20 hrs
+
+Product Flow Enhancements (inventory, expiry, admin approval): 25 hrs
+
+Product Promotion Requests (vendor → admin): 15 hrs
+
+Vendor AI Analytics Dashboard (sales, trends, predictions): 60 hrs
+
+Vendor Subtotal: 120 hrs
+
+3. Admin Dashboard – Feature Estimates
+
+Partner / Vendor Management: 20 hrs
+
+Items Management (catalog, expiry, AI tagging): 18 hrs
+
+Orders Management (refunds, disputes, overrides): 15 hrs
+
+LUMI AI Insights & Analytics (platform-wide): 25 hrs
+
+Paid Promotion & Media Management: 28 hrs
+
+Admin Subtotal: 106 hrs
+
+4. AI-Only Phased Package Estimates (As Defined Later)
+Package 1
+
+QPay Payment Method: 38 hrs
+
+Cancellation & Refunds with Wallet: 60 hrs
+
+Loyalty & Referral Program: 40 hrs
+
+Product Flow Enhancements: 25 hrs
+
+Testing & Deployment: 10 hrs
+
+Package 2
+
+Offer Management: 25 hrs
+
+Product Promotion Requests (Vendor): 15 hrs
+
+Paid Promotion & Media Management (Admin): 28 hrs
+
+New Discovery Page (Customer): 55 hrs
+
+Partner Management (Admin): 25 hrs
+
+AI Planning (Customer, Vendor, Admin): 30 hrs
+
+Package 3
+
+AI System Architecture & Infrastructure: 40 hrs
+
+Data Preparation & AI Training: 40 hrs
+
+LUMI AI – Customer Ordering Features: 80 hrs
+
+Testing & Deployment: 10 hrs
+
+Package 4
+
+AI Push Notification Engine: 60 hrs
+
+Post-Delivery Review Popup: 40 hrs
+
+Admin Items Management: 30 hrs
+
+Admin Order Management: 20 hrs
+
+Testing & Deployment: 10 hrs
+
+Package 5
+
+AI Access Filters & Real-Time Sync: 20 hrs
+
+Vendor AI Analytics: 75 hrs
+
+Admin LUMI AI Insights: 40 hrs
+
+Final Testing & Production Deployment: 20 hrs

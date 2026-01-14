@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estimation Bot - Chat</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="chat-container">
+        <header class="chat-header">
+            <div class="header-content">
+                <h1>🤖 Estimation Bot</h1>
+                <p>Ask me about time and cost estimates for your client onboarding system</p>
+            </div>
+        </header>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="message bot-message">
+                <div class="message-avatar">🤖</div>
+                <div class="message-content">
+                    <p><b>Hello! I'm your Estimation Bot.</b></p>
+                    <p>I can help you get time and cost estimates for client onboarding systems.</p>
+                    <p><b>How to use:</b></p>
+                    <ul>
+                        <li>Enter your requirements as text, OR</li>
+                        <li>Upload a PDF or DOCX file with your requirements, OR</li>
+                        <li>Do both - provide text and upload a file</li>
+                    </ul>
+                    <p>I'll analyze your requirements and provide <b>Estimated Time</b> and <b>Estimated Cost</b>.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-input-container">
+            <div class="file-upload-section">
+                <label for="fileInput" class="file-upload-label">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    Upload PDF/DOCX
+                </label>
+                <input 
+                    type="file" 
+                    id="fileInput" 
+                    accept=".pdf,.docx,.doc"
+                    style="display: none;"
+                >
+                <span id="fileName" class="file-name"></span>
+            </div>
+            <div class="input-wrapper">
+                <textarea 
+                    id="chatInput" 
+                    placeholder="Enter your requirements (or upload a file, or both)..."
+                    rows="3"
+                    autocomplete="off"
+                ></textarea>
+                <button id="sendButton" class="send-button">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                </button>
+            </div>
+            <div class="input-footer">
+                <input 
+                    type="number" 
+                    id="hourlyRate" 
+                    placeholder="Hourly Rate (optional)"
+                    class="hourly-rate-input"
+                    step="0.01"
+                >
+                <input 
+                    type="text" 
+                    id="apiUrl" 
+                    placeholder="API URL"
+                    class="api-url-input"
+                    value="http://localhost:8000"
+                >
+            </div>
+        </div>
+
+        <!-- Loading indicator -->
+        <div id="loadingIndicator" class="loading-indicator hidden">
+            <div class="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>

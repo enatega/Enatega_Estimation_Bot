@@ -216,12 +216,23 @@ ANALYSIS PROCESS:
 
 4. GENERATE intelligent estimates by considering:
    - Estimates.txt values: If feature exists, use those hours as base reference (create ±15% range)
-   - Team capabilities: How many developers? What skills? What's their capacity?
+   - Team capabilities: CRITICAL - There are 15-20 full-stack developers and engineers available
+   - Team efficiency: The team works FAST and efficiently, they are experienced developers
+   - Team location: The team is in Pakistan, which means they can work efficiently and deliver quickly
+   - Parallel work capacity: With 15-20 developers, multiple features can be developed in parallel
    - Project complexity: Is this simple, medium, or complex based on context?
    - Similar work: Are there similar features in Estimates.txt? Use them as reference
    - Technology stack: What technologies are mentioned? Factor in learning curve if needed
    - Infrastructure: Consider DevOps, QA, design team availability from context
-   - Realistic timelines: Based on team size and capabilities from context
+   - Realistic timelines: Based on team size (15-20 developers), speed, and parallel work capacity
+   
+   IMPORTANT FOR OWN PREDICTIONS (when Estimates.txt doesn't have the feature):
+   - With 15-20 developers working in parallel, estimates should be OPTIMISTIC and EFFICIENT
+   - Divide work across team members - don't assume single developer timeline
+   - Consider that multiple developers can work simultaneously on different parts
+   - Factor in that Pakistan-based teams are efficient and cost-effective
+   - If a feature would take 100 hours for 1 developer, with 15-20 developers working in parallel, it could be 5-7 hours total
+   - Be realistic but EFFICIENT - don't overestimate when you have a large, fast team
 
 5. Extract features explicitly mentioned in: "{query}"
 
@@ -442,10 +453,12 @@ ANALYSIS INSTRUCTIONS:
    - Technology stack and infrastructure
 4. Generate intelligent estimates considering:
    - Estimates.txt values (if feature exists) as base reference
-   - Team capabilities from context
+   - Team capabilities: 15-20 full-stack developers and engineers available
+   - Team efficiency: FAST, experienced, Pakistan-based team
    - Project complexity
-   - Realistic development timelines
-   - Parallel work possibilities based on team size
+   - Realistic but OPTIMISTIC development timelines (with 15-20 developers in parallel)
+   - Parallel work possibilities: Divide work across 15-20 developers efficiently
+   - When predicting from own knowledge: Be OPTIMISTIC - with large team, estimates should be efficient
 
 Return JSON array (ONLY JSON, no explanations):
 [

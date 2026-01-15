@@ -42,7 +42,7 @@ class DocumentExtractor:
         return text_content.strip()
     
     def extract_docx_text(self, file_path: str) -> str:
-        """Extract text from DOCX file"""
+        """Extract text from DOCX or DOC file"""
         # Handle both absolute and relative paths
         if os.path.isabs(file_path):
             full_path = file_path
@@ -51,6 +51,7 @@ class DocumentExtractor:
         text_content = ""
         
         try:
+            # Try python-docx (works for .docx, may work for some .doc files)
             doc = Document(full_path)
             for paragraph in doc.paragraphs:
                 if paragraph.text.strip():
@@ -64,7 +65,17 @@ class DocumentExtractor:
                         text_content += row_text + "\n"
                 text_content += "\n"
         except Exception as e:
-            logger.error(f"Failed to extract from {file_path}: {e}")
+            logger.warning(f"python-docx failed for {file_path}, trying alternative method: {e}")
+            # For .doc files, python-docx might not work
+            # Try to read as text (won't work for binary .doc, but worth trying)
+            try:
+                with open(full_path, 'r', encoding='utf-8', errors='ignore') as file:
+                    text_content = file.read()
+                if not text_content.strip():
+                    raise Exception("Empty content")
+            except Exception as e2:
+                logger.error(f"Failed to extract from {file_path}: {e2}. Note: .doc files may need to be converted to .docx for best results.")
+                raise Exception(f"Could not extract text from {file_path}. For .doc files, please convert to .docx format.")
         
         return text_content.strip()
     

@@ -63,7 +63,7 @@ async def create_estimate(
 ):
     """
     Generate time and cost estimate based on client requirements.
-    Accepts text requirements, PDF/DOCX file, or both.
+    Accepts text requirements, PDF/DOCX/DOC/TXT file, or both.
     Returns only Estimated Time and Estimated Cost.
     """
     try:
@@ -92,10 +92,12 @@ async def create_estimate(
                     file_text = extractor.extract_pdf_text(tmp_path)
                 elif file_extension in ['.docx', '.doc']:
                     file_text = extractor.extract_docx_text(tmp_path)
+                elif file_extension == '.txt':
+                    file_text = extractor.extract_txt_text(tmp_path)
                 else:
                     raise HTTPException(
                         status_code=400,
-                        detail=f"Unsupported file type: {file_extension}. Please upload PDF or DOCX files."
+                        detail=f"Unsupported file type: {file_extension}. Please upload PDF, DOCX, DOC, or TXT files."
                     )
                 
                 combined_requirements += f"Content from {file.filename}:\n{file_text}\n\n"
@@ -108,7 +110,7 @@ async def create_estimate(
         if not combined_requirements.strip():
             raise HTTPException(
                 status_code=400,
-                detail="Please provide either text requirements or upload a PDF/DOCX file (or both)."
+                detail="Please provide either text requirements or upload a PDF/DOCX/DOC/TXT file (or both)."
             )
         
         logger.info(f"Processing estimate request (text length: {len(combined_requirements)})...")

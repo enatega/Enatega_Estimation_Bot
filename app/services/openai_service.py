@@ -201,48 +201,90 @@ Return ONLY valid JSON."""
             # Prepare context for the model
             context_parts = []
             
-            # Include Estimates.txt if available
+            # Parse Estimates.txt JSON schema dynamically - no hardcoded keys
+            estimates_schema_info = ""
             if estimates_txt:
-                context_parts.append(f"=== ESTIMATES.TXT (Reference) ===\n{estimates_txt[:3000]}")
+                try:
+                    # Try to parse as JSON to extract structure
+                    estimates_json = json.loads(estimates_txt)
+                    # Dynamically extract all sections from the schema
+                    schema_parts = []
+                    
+                    # Dynamically process all top-level keys in the JSON
+                    for key, value in estimates_json.items():
+                        # Skip metadata as it's not feature estimates
+                        if key == "metadata":
+                            continue
+                        
+                        # Special handling for estimation rules (important for new features)
+                        if key == "estimation_rules_for_new_features":
+                            schema_parts.append(f"=== ESTIMATION RULES FOR NEW FEATURES (PRIMARY GUIDE) ===\n{json.dumps(value, indent=2)}")
+                        else:
+                            # Dynamically format any other section
+                            # Convert key to readable title (e.g., "customer_app_and_web" -> "Customer App And Web")
+                            section_title = key.replace("_", " ").title()
+                            schema_parts.append(f"\n=== {section_title.upper()} ===\n{json.dumps(value, indent=2)}")
+                    
+                    estimates_schema_info = "\n\n".join(schema_parts)
+                    logger.info(f"Parsed Estimates.txt JSON schema dynamically - {len(schema_parts)} sections found")
+                except Exception as e:
+                    # If JSON parsing fails, use full raw text
+                    logger.warning(f"Could not parse Estimates.txt as JSON: {e} - using raw text")
+                    estimates_schema_info = estimates_txt
             
             # Include Enatega product context
             if context:
-                context_parts.append(f"\n=== ENATEGA PRODUCT CONTEXT ===\n{context[:3000]}")
+                context_parts = [f"\n=== ENATEGA PRODUCT CONTEXT ===\n{context[:3000]}"]
+            else:
+                context_parts = []
             
             combined_context = "\n\n".join(context_parts) if context_parts else ""
             
-            prompt = f"""You are an expert estimation analyst. Generate a time estimate for this feature using your knowledge and the provided context.
+            prompt = f"""You are an expert estimation analyst. Generate a time estimate for this feature using the Estimates.txt JSON schema as your PRIMARY reference.
 
 Query: {query}
 
-Context Available:
-{combined_context if combined_context else "No specific context available - use your general knowledge"}
+=== ESTIMATES.TXT JSON SCHEMA (PRIMARY REFERENCE - BUILD FROM THIS) ===
+{estimates_schema_info if estimates_schema_info else estimates_txt if estimates_txt else "No schema available"}
 
-CRITICAL INFORMATION TO CONSIDER:
-1. This is for Enatega - a food delivery platform (similar to Uber Eats)
-2. Team: 15-20 full-stack developers and engineers available
-3. Team location: Pakistan (efficient, fast delivery)
-4. Team works FAST and efficiently
-5. Multiple developers can work in parallel
-6. Default hourly rate: $30/hour
+=== ADDITIONAL CONTEXT ===
+{combined_context if combined_context else "No additional context available"}
 
-ESTIMATION APPROACH:
-1. Understand what the feature requires (e.g., "AWS integration" = setting up AWS services, infrastructure, API integrations)
-2. Consider the complexity:
-   - Simple integration: Basic setup, configuration (10-20 hours)
-   - Medium integration: API setup, some custom code (20-40 hours)
-   - Complex integration: Full infrastructure, multiple services, custom development (40-80 hours)
-3. Factor in team size: With 15-20 developers, work can be parallelized
-4. Be OPTIMISTIC but realistic - Pakistan-based team is efficient
-5. If Estimates.txt has similar features, use those as reference
+CRITICAL ESTIMATION INSTRUCTIONS:
 
-For "AWS Integration for Enatega", consider:
-- AWS services setup (S3, EC2, RDS, Lambda, etc.)
-- Infrastructure as Code (CloudFormation/Terraform)
-- API integrations
-- Security configurations
-- Monitoring and logging setup
-- Testing and deployment
+1. PRIMARY METHOD - USE ESTIMATES.TXT JSON SCHEMA:
+   - Study the JSON schema structure carefully (all sections are provided above)
+   - Find the MOST SIMILAR feature in ANY section of the schema to the requested feature
+   - Use the hours from that similar feature as your BASE reference
+   - If exact match exists, use those hours directly (create ±10% range for min/max)
+   - If similar feature exists, adjust hours based on complexity difference (±20% range)
+   - Check "estimation_rules_for_new_features" section for guidance on feature types
+
+2. ESTIMATION RULES FROM SCHEMA (if feature type matches):
+   - Study the "estimation_rules_for_new_features" section in the schema
+   - Use the rules that match your feature type (the rules are provided in the schema above)
+   - The rules provide hour ranges for different feature complexities
+
+3. TEAM CONTEXT:
+   - Team: 15-20 full-stack developers and engineers
+   - Location: Pakistan (efficient, fast delivery)
+   - Team works FAST and efficiently
+   - Multiple developers can work in parallel
+   - Default hourly rate: $30/hour
+
+4. ESTIMATE GENERATION (LOWER/OPTIMISTIC SIDE):
+   - ALWAYS provide estimates on the LOWER/OPTIMISTIC side
+   - If schema shows 50 hours for similar feature, use 40-55 hours (lower end)
+   - Factor in parallel work: With 15-20 developers, work can be divided efficiently
+   - Be OPTIMISTIC but realistic - team is experienced and efficient
+   - Don't overestimate - consider team size and parallel capacity
+   - If schema has range (min/max), use the LOWER end as your base
+
+5. FEATURE MAPPING:
+   - Map the requested feature to the closest match in ANY section of the schema
+   - Search through ALL sections dynamically (don't limit to specific section names)
+   - Find similar features by understanding the feature's purpose and scope
+   - Use semantic matching - look for features with similar functionality
 
 Return JSON:
 {{
@@ -254,7 +296,7 @@ Return JSON:
   "category": "Integration"
 }}
 
-Return ONLY valid JSON, no explanations."""
+Return ONLY valid JSON, no explanations. Base your estimate on the schema values."""
             
             response = self.client.chat.completions.create(
                 model=settings.OPENAI_MODEL,
@@ -338,8 +380,9 @@ Return ONLY valid JSON, no explanations."""
             if self.knowledge_base:
                 estimates_txt = self.knowledge_base.get_chatgpt_examples()
                 if estimates_txt:
-                    estimates_txt = estimates_txt[:5000]  # Get more of Estimates.txt
-                    logger.info(f"Loaded Estimates.txt ({len(estimates_txt)} chars) as primary reference")
+                    # Get FULL Estimates.txt (it's a JSON schema, we need the complete structure)
+                    # Don't truncate - we need the full schema for proper parsing
+                    logger.info(f"Loaded Estimates.txt ({len(estimates_txt)} chars) as primary reference - FULL JSON SCHEMA")
             
             if not estimates_txt:
                 logger.warning("Estimates.txt not available - this should not happen!")
@@ -365,9 +408,10 @@ Return ONLY valid JSON, no explanations."""
             
             # PRIMARY: Estimates.txt (MANDATORY - feature estimates reference)
             # This MUST always be included for the model to learn from
+            # Include FULL Estimates.txt JSON schema (don't truncate - we need complete structure)
             if estimates_txt:
-                context_parts.append(f"=== ESTIMATES.TXT (MANDATORY PRIMARY REFERENCE - Feature Estimates) ===\n{estimates_txt[:5000]}")
-                logger.info("Estimates.txt included as mandatory primary reference")
+                context_parts.append(f"=== ESTIMATES.TXT JSON SCHEMA (MANDATORY PRIMARY REFERENCE - FULL SCHEMA) ===\n{estimates_txt}")
+                logger.info(f"Estimates.txt FULL JSON schema included as mandatory primary reference ({len(estimates_txt)} chars)")
             else:
                 logger.error("CRITICAL: Estimates.txt not available!")
             
@@ -384,8 +428,8 @@ Return ONLY valid JSON, no explanations."""
             if context and context not in vector_context and context not in broader_context and context != estimates_txt:
                 context_parts.append(f"\n=== SUPPLEMENTARY ENATEGA CONTEXT ===\n{context[:2000]}")
             
-            # Combine everything - Estimates.txt is ALWAYS first and mandatory
-            combined_context = "\n\n".join(context_parts) if context_parts else estimates_txt[:5000] if estimates_txt else ""
+            # Combine everything - Estimates.txt is ALWAYS first and mandatory (FULL schema)
+            combined_context = "\n\n".join(context_parts) if context_parts else estimates_txt if estimates_txt else ""
             
             if not combined_context:
                 logger.error("No context available - this should not happen!")
@@ -393,59 +437,90 @@ Return ONLY valid JSON, no explanations."""
             
             logger.info(f"Combined context length: {len(combined_context)} characters from {len(context_parts)} sources (Estimates.txt MANDATORY)")
             
-            # Use intelligent AI analysis instead of exact extraction
-            prompt = f"""You are an expert estimation analyst. Analyze the requirements and generate intelligent time estimates by studying ALL available context.
+            # Parse Estimates.txt JSON schema if available
+            estimates_schema_info = ""
+            if estimates_txt:
+                try:
+                    # Try to parse as JSON to extract structure
+                    estimates_json = json.loads(estimates_txt)
+                    # Dynamically extract all sections from the schema
+                    schema_parts = []
+                    
+                    # Dynamically process all top-level keys in the JSON
+                    for key, value in estimates_json.items():
+                        # Skip metadata as it's not feature estimates
+                        if key == "metadata":
+                            continue
+                        
+                        # Special handling for estimation rules (important for new features)
+                        if key == "estimation_rules_for_new_features":
+                            schema_parts.append(f"=== ESTIMATION RULES FOR NEW FEATURES (PRIMARY GUIDE) ===\n{json.dumps(value, indent=2)}")
+                        else:
+                            # Dynamically format any other section
+                            # Convert key to readable title (e.g., "customer_app_and_web" -> "Customer App And Web")
+                            section_title = key.replace("_", " ").title()
+                            schema_parts.append(f"\n=== {section_title.upper()} ===\n{json.dumps(value, indent=2)}")
+                    
+                    estimates_schema_info = "\n\n".join(schema_parts)
+                    logger.info(f"Parsed Estimates.txt JSON schema dynamically - {len(schema_parts)} sections found")
+                except Exception as e:
+                    # If JSON parsing fails, use full raw text
+                    logger.warning(f"Could not parse Estimates.txt as JSON: {e} - using raw text")
+                    estimates_schema_info = estimates_txt
+            
+            # Use intelligent AI analysis with JSON schema as primary reference
+            prompt = f"""You are an expert estimation analyst. Analyze the requirements and generate intelligent time estimates by studying the Estimates.txt JSON schema and ALL available context.
 
 Requirements: {query}
 
-COMPREHENSIVE CONTEXT FROM ALL DOCUMENTS (study ALL of this carefully):
-{combined_context}
+=== ESTIMATES.TXT JSON SCHEMA (PRIMARY REFERENCE - BUILD FROM THIS) ===
+{estimates_schema_info if estimates_schema_info else estimates_txt[:5000]}
 
-ANALYSIS PROCESS:
-1. STUDY the requirements thoroughly - understand what needs to be built
+=== ADDITIONAL CONTEXT (Product Understanding) ===
+{combined_context.replace(estimates_txt[:5000], '') if estimates_txt and estimates_txt[:5000] in combined_context else combined_context}
 
-2. ANALYZE Estimates.txt (PRIMARY REFERENCE):
-   - Search for features that match the requirements
-   - Look for similar features if exact match not found
-   - Use Estimates.txt hours as reference for your estimates
-   - Example: "rating and review" → look for "Review", "Rating" features
-   - Example: "HYP payment" → look for payment gateway features
+CRITICAL ESTIMATION INSTRUCTIONS:
 
-3. ANALYZE other context comprehensively:
-   - Team composition and capabilities (e.g., "15 full-stack developers", "2 DevOps engineers", "3 QA specialists")
-   - Team size and skill levels mentioned
-   - Project complexity factors from documents
-   - Technology stack and infrastructure details
-   - Similar features or projects mentioned in context
+1. PRIMARY METHOD - USE ESTIMATES.TXT JSON SCHEMA:
+   - The Estimates.txt contains a JSON schema with feature estimates in hours
+   - Study ALL sections in the schema dynamically (the schema structure is provided above)
+   - Find the MOST SIMILAR feature in the schema to the requested feature
+   - Use the hours from that similar feature as your BASE reference
+   - If exact match exists, use those hours directly (create ±10% range for min/max)
+   - If similar feature exists, adjust hours based on complexity difference (±20% range)
+   - Check "estimation_rules_for_new_features" section for guidance on feature types
 
-4. GENERATE intelligent estimates by considering:
-   - Estimates.txt values: If feature exists, use those hours as base reference (create ±15% range)
-   - Team capabilities: CRITICAL - There are 15-20 full-stack developers and engineers available
-   - Team efficiency: The team works FAST and efficiently, they are experienced developers
-   - Team location: The team is in Pakistan, which means they can work efficiently and deliver quickly
-   - Parallel work capacity: With 15-20 developers, multiple features can be developed in parallel
-   - Project complexity: Is this simple, medium, or complex based on context?
-   - Similar work: Are there similar features in Estimates.txt? Use them as reference
-   - Technology stack: What technologies are mentioned? Factor in learning curve if needed
-   - Infrastructure: Consider DevOps, QA, design team availability from context
-   - Realistic timelines: Based on team size (15-20 developers), speed, and parallel work capacity
-   
-   IMPORTANT FOR OWN PREDICTIONS (when Estimates.txt doesn't have the feature):
-   - With 15-20 developers working in parallel, estimates should be OPTIMISTIC and EFFICIENT
-   - Divide work across team members - don't assume single developer timeline
-   - Consider that multiple developers can work simultaneously on different parts
-   - Factor in that Pakistan-based teams are efficient and cost-effective
-   - If a feature would take 100 hours for 1 developer, with 15-20 developers working in parallel, it could be 5-7 hours total
-   - Be realistic but EFFICIENT - don't overestimate when you have a large, fast team
+2. ESTIMATION RULES FROM SCHEMA (if feature type matches):
+   - Study the "estimation_rules_for_new_features" section in the schema
+   - Use the rules that match your feature type (the rules are provided in the schema above)
+   - The rules provide hour ranges for different feature complexities
 
-5. Extract features explicitly mentioned in: "{query}"
+3. TEAM CONTEXT (ALWAYS CONSIDER):
+   - Team: 15-20 full-stack developers and engineers
+   - Location: Pakistan (efficient, fast delivery)
+   - Team works FAST and efficiently
+   - Multiple developers can work in parallel
+   - Default hourly rate: $30/hour
 
-6. Provide realistic time ranges that reflect:
-   - Estimates.txt values (if available) as primary reference
-   - Team capabilities from context
-   - Project complexity
-   - Similar work patterns from context
-   - Realistic development timelines
+4. ESTIMATE GENERATION (LOWER/OPTIMISTIC SIDE):
+   - ALWAYS provide estimates on the LOWER/OPTIMISTIC side
+   - If Estimates.txt shows 50 hours for similar feature, use 40-55 hours (lower end)
+   - Factor in parallel work: With 15-20 developers, work can be divided efficiently
+   - Be OPTIMISTIC but realistic - team is experienced and efficient
+   - Don't overestimate - consider team size and parallel capacity
+   - If schema has range (min/max), use the LOWER end as your base
+
+5. FEATURE MAPPING:
+   - Map the requested feature to the closest match in the schema
+   - Search through ALL sections dynamically (don't limit to specific section names)
+   - Find similar features by understanding the feature's purpose and scope
+   - Use semantic matching - look for features with similar functionality
+
+6. FINAL ESTIMATE:
+   - Base your estimate on the schema value (if similar feature exists)
+   - Apply ±10-15% range for min/max (lean toward LOWER side)
+   - Consider team efficiency and parallel work
+   - Provide OPTIMISTIC but realistic estimate
 
 Return COMPLETE JSON array (ensure valid JSON, all brackets closed):
 [
@@ -463,27 +538,47 @@ Return COMPLETE JSON array (ensure valid JSON, all brackets closed):
 
 YOUR ROLE:
 - Analyze requirements intelligently
-- Study ALL context comprehensively (Estimates.txt, team, project, documents)
-- Generate intelligent estimates based on comprehensive understanding
-- Use Estimates.txt as PRIMARY REFERENCE for feature estimates
+- Study the Estimates.txt JSON SCHEMA as PRIMARY REFERENCE
+- Build estimates FROM the schema structure
+- Generate estimates on the LOWER/OPTIMISTIC side
 
 ESTIMATION APPROACH:
-1. Search Estimates.txt for matching features (PRIMARY REFERENCE)
-2. Study team composition from context (size, skills, roles)
-3. Understand project complexity and requirements
-4. Reference similar work from Estimates.txt and context as guidance
-5. Generate estimates that reflect:
-   - Estimates.txt values (if feature exists) as base reference
-   - Team capabilities and capacity
-   - Project complexity
-   - Realistic development timelines
-   - Parallel work possibilities
+1. PRIMARY: Study Estimates.txt JSON schema structure
+   - Find the MOST SIMILAR feature in the schema
+   - Use those hours as BASE reference
+   - Apply ±10-15% range (lean toward LOWER side)
+   - Check "estimation_rules_for_new_features" for feature type guidance
 
-6. ANALYZE intelligently - use Estimates.txt as reference, not just copy numbers
-7. Consider ALL factors: Estimates.txt, team size, skills, infrastructure, QA, design, etc.
+2. ESTIMATION RULES (from schema):
+   - UI only (single app): 8-15 hours
+   - UI + backend (single role): 20-35 hours
+   - Multi-role feature: 35-60 hours
+   - All roles feature: 50-80 hours
+   - AI simple (rule-based): 25-40 hours
+   - AI conversational/predictive: 60-120 hours
+   - External API simple: 40-60 hours
+   - External API complex: 80-120 hours
+
+3. TEAM CONTEXT (always consider):
+   - 15-20 full-stack developers available
+   - Pakistan-based, efficient team
+   - Parallel work capacity
+   - Lower estimates due to team size and efficiency
+
+4. ESTIMATE GENERATION:
+   - ALWAYS provide estimates on the LOWER/OPTIMISTIC side
+   - If schema shows 50 hours, use 40-55 hours (lower end)
+   - Factor in parallel work with 15-20 developers
+   - Be OPTIMISTIC but realistic
+
+5. FEATURE MAPPING:
+   - Map to closest schema category dynamically (search through ALL sections in the schema)
+   - Use similar features as reference
+   - Apply appropriate estimation rules
 
 Return ONLY valid JSON array, no explanations.
-Format: [{"name": "...", "description": "...", "base_time_hours_min": <min>, "base_time_hours_max": <max>, "complexity_level": "...", "category": "..."}]"""
+Format: [{"name": "...", "description": "...", "base_time_hours_min": <min>, "base_time_hours_max": <max>, "complexity_level": "...", "category": "..."}]
+ALWAYS base estimates on the schema values - build FROM the schema."""
             
             response = self.client.chat.completions.create(
                 model=settings.OPENAI_MODEL,

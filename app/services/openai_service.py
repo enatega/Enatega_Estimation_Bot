@@ -19,6 +19,39 @@ class OpenAIService:
         if not self.client:
             logger.warning("OpenAI API key not configured")
     
+    def _get_max_tokens_param(self, max_tokens_value: int) -> dict:
+        """Get the correct max tokens parameter based on model type"""
+        model = settings.OPENAI_MODEL.lower()
+        
+        # Models that require max_completion_tokens:
+        # - o1, o3 series (reasoning models)
+        # - gpt-4-turbo-preview and newer gpt-4 models
+        # - gpt-5.x series (all versions)
+        # - Any model that the API says requires it
+        # The API will accept max_completion_tokens even if SDK version is old
+        
+        # Check for models that definitely need max_completion_tokens
+        needs_completion_tokens = (
+            model.startswith('o1') or 
+            model.startswith('o3') or 
+            model.startswith('gpt-5') or  # GPT-5.x series (including 5.2)
+            'gpt-5' in model or
+            'turbo' in model or 
+            'preview' in model or 
+            'gpt-4' in model or
+            model.startswith('gpt-4')
+        )
+        
+        if needs_completion_tokens:
+            # Use max_completion_tokens for newer models
+            # The API requires it, even if SDK doesn't officially support it
+            logger.info(f"Using max_completion_tokens for model: {model}")
+            return {"max_completion_tokens": max_tokens_value}
+        
+        # For older models (gpt-3.5, etc.), use max_tokens
+        logger.info(f"Using max_tokens for model: {model}")
+        return {"max_tokens": max_tokens_value}
+    
     def _build_system_prompt(self) -> str:
         """Build system prompt based on ChatGPT examples"""
         chatgpt_examples = self.knowledge_base.get_chatgpt_examples()
@@ -102,7 +135,7 @@ Return ONLY valid JSON."""
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.1,
-                max_tokens=500
+                **self._get_max_tokens_param(500)
             )
             
             content = response.choices[0].message.content.strip()
@@ -162,7 +195,7 @@ Return ONLY valid JSON."""
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.1,
-                max_tokens=500
+                **self._get_max_tokens_param(500)
             )
             
             content = response.choices[0].message.content.strip()
@@ -305,7 +338,7 @@ Return ONLY valid JSON, no explanations. Base your estimate on the schema values
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.3,
-                max_tokens=1000
+                **self._get_max_tokens_param(1000)
             )
             
             content = response.choices[0].message.content.strip()
@@ -387,7 +420,8 @@ Return ONLY valid JSON, no explanations. Base your estimate on the schema values
             if not estimates_txt:
                 logger.warning("Estimates.txt not available - this should not happen!")
             
-            # Get comprehensive context from vector store - get MORE results for better coverage
+            # STEP 1: First try to retrieve information from context (if present)
+            # Get comprehensive context from vector store and knowledge base
             vector_context = ""
             try:
                 if self.knowledge_base.vector_store:
@@ -403,32 +437,51 @@ Return ONLY valid JSON, no explanations. Base your estimate on the schema values
             except:
                 pass
             
-            # Combine ALL contexts comprehensively - ALWAYS prioritize Estimates.txt
+            # Combine all context sources
+            all_context_sources = []
+            if vector_context:
+                all_context_sources.append(vector_context)
+            if broader_context and broader_context != vector_context:
+                all_context_sources.append(broader_context)
+            if context and context not in all_context_sources:
+                all_context_sources.append(context)
+            
+            # Check if context has relevant information about the feature
+            combined_context_text = "\n\n".join(all_context_sources) if all_context_sources else ""
+            context_has_info = False
+            if combined_context_text:
+                # Check if context mentions the feature or related terms
+                query_lower = query.lower()
+                query_keywords = [w for w in query_lower.split() if len(w) > 3]
+                context_lower = combined_context_text.lower()
+                # Check if context contains relevant information
+                matches = sum(1 for keyword in query_keywords if keyword in context_lower)
+                if matches > 0 or len(combined_context_text) > 500:
+                    context_has_info = True
+                    logger.info(f"Context contains relevant information ({matches} keyword matches, {len(combined_context_text)} chars)")
+            
+            # STEP 2: Build context with priority: Context first (if present), then Estimates.txt
             context_parts = []
             
-            # PRIMARY: Estimates.txt (MANDATORY - feature estimates reference)
-            # This MUST always be included for the model to learn from
-            # Include FULL Estimates.txt JSON schema (don't truncate - we need complete structure)
+            if context_has_info and combined_context_text:
+                # PRIMARY: Use context if it has relevant information
+                context_parts.append(f"=== RELEVANT CONTEXT (PRIMARY - USE THIS IF IT HAS FEATURE INFO) ===\n{combined_context_text}")
+                logger.info("Using context as PRIMARY source (contains relevant information)")
+            
+            # SECONDARY: Estimates.txt (fallback if context doesn't have info, or as reference)
             if estimates_txt:
-                context_parts.append(f"=== ESTIMATES.TXT JSON SCHEMA (MANDATORY PRIMARY REFERENCE - FULL SCHEMA) ===\n{estimates_txt}")
-                logger.info(f"Estimates.txt FULL JSON schema included as mandatory primary reference ({len(estimates_txt)} chars)")
+                if context_has_info:
+                    # Include Estimates.txt as reference/fallback
+                    context_parts.append(f"\n=== ESTIMATES.TXT JSON SCHEMA (REFERENCE/FALLBACK - FULL SCHEMA) ===\n{estimates_txt}")
+                    logger.info(f"Estimates.txt included as reference/fallback ({len(estimates_txt)} chars)")
+                else:
+                    # No context info, use Estimates.txt as primary
+                    context_parts.append(f"=== ESTIMATES.TXT JSON SCHEMA (PRIMARY - NO CONTEXT INFO FOUND) ===\n{estimates_txt}")
+                    logger.info(f"Using Estimates.txt as PRIMARY source (no relevant context found) ({len(estimates_txt)} chars)")
             else:
                 logger.error("CRITICAL: Estimates.txt not available!")
             
-            # Secondary: Enatega product context from other documents (for product understanding)
-            # This helps model understand Enatega as a product
-            if vector_context:
-                context_parts.append(f"\n=== ENATEGA PRODUCT CONTEXT (Product Understanding) ===\n{vector_context[:4000]}")
-            
-            # Additional broader context (Enatega product details)
-            if broader_context and broader_context != vector_context and broader_context != estimates_txt:
-                context_parts.append(f"\n=== ADDITIONAL ENATEGA CONTEXT (Product Details) ===\n{broader_context[:3000]}")
-            
-            # Original context if provided (Enatega product info)
-            if context and context not in vector_context and context not in broader_context and context != estimates_txt:
-                context_parts.append(f"\n=== SUPPLEMENTARY ENATEGA CONTEXT ===\n{context[:2000]}")
-            
-            # Combine everything - Estimates.txt is ALWAYS first and mandatory (FULL schema)
+            # Combine everything - Context first (if present), then Estimates.txt
             combined_context = "\n\n".join(context_parts) if context_parts else estimates_txt if estimates_txt else ""
             
             if not combined_context:
@@ -468,26 +521,38 @@ Return ONLY valid JSON, no explanations. Base your estimate on the schema values
                     logger.warning(f"Could not parse Estimates.txt as JSON: {e} - using raw text")
                     estimates_schema_info = estimates_txt
             
-            # Use intelligent AI analysis with JSON schema as primary reference
-            prompt = f"""You are an expert estimation analyst. Analyze the requirements and generate intelligent time estimates by studying the Estimates.txt JSON schema and ALL available context.
+            # Use intelligent AI analysis - prioritize context first, then Estimates.txt
+            prompt = f"""You are an expert estimation analyst. Analyze the requirements and generate intelligent time estimates.
 
 Requirements: {query}
 
-=== ESTIMATES.TXT JSON SCHEMA (PRIMARY REFERENCE - BUILD FROM THIS) ===
-{estimates_schema_info if estimates_schema_info else estimates_txt[:5000]}
-
-=== ADDITIONAL CONTEXT (Product Understanding) ===
-{combined_context.replace(estimates_txt[:5000], '') if estimates_txt and estimates_txt[:5000] in combined_context else combined_context}
+=== AVAILABLE CONTEXT (PRIORITY ORDER) ===
+{combined_context}
 
 CRITICAL ESTIMATION INSTRUCTIONS:
 
-1. PRIMARY METHOD - USE ESTIMATES.TXT JSON SCHEMA:
+1. PRIORITY METHOD - CHECK CONTEXT FIRST:
+   - FIRST: Check if the context above contains information about the requested feature
+   - If context has relevant feature information (hours, estimates, similar features), USE THAT as PRIMARY reference
+   - Extract hours/estimates directly from context if available
+   - If context has similar features, use those as base reference
+   
+2. FALLBACK METHOD - USE ESTIMATES.TXT JSON SCHEMA (CRITICAL - USE EXACT VALUES):
+   - If context does NOT have relevant information, use Estimates.txt JSON schema
    - The Estimates.txt contains a JSON schema with feature estimates in hours
    - Study ALL sections in the schema dynamically (the schema structure is provided above)
-   - Find the MOST SIMILAR feature in the schema to the requested feature
-   - Use the hours from that similar feature as your BASE reference
-   - If exact match exists, use those hours directly (create ±10% range for min/max)
-   - If similar feature exists, adjust hours based on complexity difference (±20% range)
+   - Find the EXACT or MOST SIMILAR feature in the schema to the requested feature
+   
+   CRITICAL: When you find a matching feature in Estimates.txt:
+   - If the feature has "min" and "max" values, USE THOSE EXACT VALUES
+   - Example: "uber_eats_style_delivery_integration": {{"min": 78, "max": 100}}
+     → Use 78-100 hours DIRECTLY (apply lower/optimistic range: 70-95 hours)
+   - Example: "ai_orchestration_for_integrations": {{"min": 82, "max": 90}}
+     → Use 82-90 hours DIRECTLY (apply lower/optimistic range: 75-85 hours)
+   - DO NOT multiply or add these values - use them as base
+   - Apply 10-15% LOWER/OPTIMISTIC reduction for Pakistan-based team efficiency
+   - If exact match exists, use those min/max values directly with optimistic reduction
+   - If similar feature exists, use those values as reference with small adjustment
    - Check "estimation_rules_for_new_features" section for guidance on feature types
 
 2. ESTIMATION RULES FROM SCHEMA (if feature type matches):
@@ -502,13 +567,15 @@ CRITICAL ESTIMATION INSTRUCTIONS:
    - Multiple developers can work in parallel
    - Default hourly rate: $30/hour
 
-4. ESTIMATE GENERATION (LOWER/OPTIMISTIC SIDE):
-   - ALWAYS provide estimates on the LOWER/OPTIMISTIC side
-   - If Estimates.txt shows 50 hours for similar feature, use 40-55 hours (lower end)
+4. ESTIMATE GENERATION (LOWER/OPTIMISTIC SIDE - PAKISTAN-BASED TEAM):
+   - CRITICAL: ALWAYS provide estimates on the LOWER/OPTIMISTIC side
+   - This is for a Pakistan-based team (15-20 developers, fast and efficient)
+   - If context or Estimates.txt shows 50 hours for similar feature, use 40-55 hours (lower end)
    - Factor in parallel work: With 15-20 developers, work can be divided efficiently
-   - Be OPTIMISTIC but realistic - team is experienced and efficient
-   - Don't overestimate - consider team size and parallel capacity
+   - Be OPTIMISTIC but realistic - Pakistan-based team is experienced, fast, and efficient
+   - Don't overestimate - consider team size, parallel capacity, and Pakistan-based efficiency
    - If schema has range (min/max), use the LOWER end as your base
+   - Apply 10-20% reduction for Pakistan-based team efficiency and parallel work capacity
 
 5. FEATURE MAPPING:
    - Map the requested feature to the closest match in the schema
@@ -516,11 +583,22 @@ CRITICAL ESTIMATION INSTRUCTIONS:
    - Find similar features by understanding the feature's purpose and scope
    - Use semantic matching - look for features with similar functionality
 
-6. FINAL ESTIMATE:
-   - Base your estimate on the schema value (if similar feature exists)
+6. FINAL ESTIMATE (LOWER/OPTIMISTIC - PAKISTAN-BASED):
+   - Base your estimate on context (if available) OR schema value (if context doesn't have info)
+   
+   CRITICAL FOR ESTIMATES.TXT VALUES:
+   - If you found exact match in Estimates.txt with min/max values, use those EXACTLY
+   - Example: "uber_eats_style_delivery_integration": {{"min": 78, "max": 100}}
+     → Return: base_time_hours_min: 70, base_time_hours_max: 95 (10-15% lower/optimistic)
+   - DO NOT combine multiple features unless user explicitly asks for multiple features
+   - If user asks for ONE feature, return estimate for THAT ONE feature only
+   
+   GENERAL RULES:
    - Apply ±10-15% range for min/max (lean toward LOWER side)
-   - Consider team efficiency and parallel work
-   - Provide OPTIMISTIC but realistic estimate
+   - Consider Pakistan-based team efficiency (15-20 developers, fast, efficient)
+   - Factor in parallel work capacity
+   - Provide OPTIMISTIC but realistic estimate - always on the lower side
+   - Remember: Pakistan-based teams are efficient and can work in parallel effectively
 
 Return COMPLETE JSON array (ensure valid JSON, all brackets closed):
 [
@@ -538,47 +616,61 @@ Return COMPLETE JSON array (ensure valid JSON, all brackets closed):
 
 YOUR ROLE:
 - Analyze requirements intelligently
-- Study the Estimates.txt JSON SCHEMA as PRIMARY REFERENCE
-- Build estimates FROM the schema structure
-- Generate estimates on the LOWER/OPTIMISTIC side
+- FIRST: Check context for relevant feature information (if present)
+- SECOND: Use Estimates.txt JSON SCHEMA as fallback (if context doesn't have info)
+- Build estimates FROM context OR schema structure
+- Generate estimates on the LOWER/OPTIMISTIC side for Pakistan-based team
 
 ESTIMATION APPROACH:
-1. PRIMARY: Study Estimates.txt JSON schema structure
-   - Find the MOST SIMILAR feature in the schema
-   - Use those hours as BASE reference
-   - Apply ±10-15% range (lean toward LOWER side)
+1. PRIORITY: Check context first
+   - If context has relevant feature information, USE THAT as PRIMARY
+   - Extract hours/estimates directly from context if available
+   - If context has similar features, use those as base reference
+
+2. FALLBACK: Study Estimates.txt JSON schema structure (if context doesn't have info)
+   - Find the EXACT or MOST SIMILAR feature in the schema
+   - CRITICAL: If feature has "min" and "max" values, USE THOSE EXACT VALUES
+   - Example: "uber_eats_style_delivery_integration": {{"min": 78, "max": 100}}
+     → Use 78-100 hours DIRECTLY, then apply 10-15% lower/optimistic (70-95 hours)
+   - DO NOT multiply or combine multiple features unless explicitly requested
+   - Apply ±10-15% range (lean toward LOWER side) for Pakistan-based team
    - Check "estimation_rules_for_new_features" for feature type guidance
 
-2. ESTIMATION RULES (from schema):
-   - UI only (single app): 8-15 hours
-   - UI + backend (single role): 20-35 hours
-   - Multi-role feature: 35-60 hours
-   - All roles feature: 50-80 hours
-   - AI simple (rule-based): 25-40 hours
-   - AI conversational/predictive: 60-120 hours
-   - External API simple: 40-60 hours
-   - External API complex: 80-120 hours
+3. ESTIMATION RULES (from schema):
+   - Study the "estimation_rules_for_new_features" section in the schema
+   - Use the rules that match your feature type (the rules are provided in the schema above)
+   - The rules provide hour ranges for different feature complexities
 
-3. TEAM CONTEXT (always consider):
+4. TEAM CONTEXT (always consider):
    - 15-20 full-stack developers available
    - Pakistan-based, efficient team
    - Parallel work capacity
    - Lower estimates due to team size and efficiency
+   - Apply 10-20% reduction for Pakistan-based team efficiency
 
-4. ESTIMATE GENERATION:
+5. ESTIMATE GENERATION (LOWER/OPTIMISTIC):
    - ALWAYS provide estimates on the LOWER/OPTIMISTIC side
-   - If schema shows 50 hours, use 40-55 hours (lower end)
+   
+   CRITICAL FOR ESTIMATES.TXT:
+   - If Estimates.txt shows {{"min": 78, "max": 100}}, use those EXACT values
+   - Apply 10-15% LOWER reduction: 78-100 → 70-95 hours
+   - DO NOT combine multiple features - use only the matching feature
+   - If user asks for "uber eats integration", return ONLY that feature's estimate
+   
+   GENERAL RULES:
+   - If context or schema shows 50 hours, use 40-55 hours (lower end)
    - Factor in parallel work with 15-20 developers
    - Be OPTIMISTIC but realistic
+   - Apply 10-20% reduction for Pakistan-based team efficiency
 
-5. FEATURE MAPPING:
-   - Map to closest schema category dynamically (search through ALL sections in the schema)
+6. FEATURE MAPPING:
+   - Map to closest feature in context (if available) OR schema category
    - Use similar features as reference
    - Apply appropriate estimation rules
 
 Return ONLY valid JSON array, no explanations.
 Format: [{"name": "...", "description": "...", "base_time_hours_min": <min>, "base_time_hours_max": <max>, "complexity_level": "...", "category": "..."}]
-ALWAYS base estimates on the schema values - build FROM the schema."""
+ALWAYS base estimates on context (if available) OR schema values - build FROM context first, then schema."""
             
             response = self.client.chat.completions.create(
                 model=settings.OPENAI_MODEL,
@@ -587,7 +679,7 @@ ALWAYS base estimates on the schema values - build FROM the schema."""
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.1,  # Very low for accurate extraction
-                max_tokens=2500  # Increased to ensure complete JSON
+                **self._get_max_tokens_param(2500)  # Increased to ensure complete JSON
             )
             
             content = response.choices[0].message.content.strip()
@@ -816,7 +908,7 @@ Return JSON array (ONLY JSON, no explanations):
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.1,
-                max_tokens=2500  # Increased for complete JSON
+                **self._get_max_tokens_param(2500)  # Increased for complete JSON
             )
             
             content = response.choices[0].message.content.strip()
@@ -918,7 +1010,7 @@ CRITICAL:
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.2,  # Lower temperature for more focused, accurate responses
-                max_tokens=600  # Reduced for more concise responses
+                **self._get_max_tokens_param(600)  # Reduced for more concise responses
             )
             
             content = response.choices[0].message.content.strip()
@@ -1042,7 +1134,7 @@ CRITICAL:
                 model=settings.OPENAI_MODEL,
                 messages=messages,
                 temperature=0.2,  # Lower for more focused, role-appropriate responses
-                max_tokens=600  # Reduced for concise responses
+                **self._get_max_tokens_param(600)  # Reduced for concise responses
             )
             
             content = response.choices[0].message.content.strip()

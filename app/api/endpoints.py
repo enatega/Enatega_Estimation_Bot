@@ -127,18 +127,20 @@ async def create_estimate(
             features = openai_service.extract_features_from_query(combined_requirements, context)
             
             if not features:
-                logger.error("Feature extraction failed after retry - final fallback should have worked")
-                # This should never happen now as we have a final fallback that always returns something
-                # But if it does, return a generic estimate
-                logger.warning("Using emergency fallback - generating basic estimate")
-                features = [{
-                    "name": combined_requirements[:50] if len(combined_requirements) > 50 else combined_requirements,
-                    "description": "Estimate based on requirements",
-                    "base_time_hours_min": 30.0,
-                    "base_time_hours_max": 60.0,
-                    "complexity_level": "medium",
-                    "category": "Feature Development"
-                }]
+                # No features extracted - LLM has already verified if query is vague
+                # If query is vague, features will be empty and we'll return 0 estimate
+                logger.info("No features extracted after retry - query may be vague/irrelevant or extraction failed")
+        
+        # If no features extracted, return 0 estimate (query was vague/irrelevant)
+        if not features:
+            logger.info("No features extracted - returning 0 estimate (query is vague/irrelevant)")
+            return EstimateResponse(
+                estimated_time_hours_min=0.0,
+                estimated_time_hours_max=0.0,
+                estimated_cost_min=0.0,
+                estimated_cost_max=0.0,
+                feature_breakdown=[]
+            )
         
         # Create estimation engine - use $30/hour as default (company rate)
         engine = get_estimation_engine(hourly_rate or 30.0)

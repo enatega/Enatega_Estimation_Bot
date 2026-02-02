@@ -407,6 +407,11 @@ Return ONLY valid JSON, no explanations. Base your estimate on the schema values
         if not self.client:
             return []
         
+        # FIRST: Check if query is vague/irrelevant before doing expensive extraction
+        if self._is_query_vague_or_irrelevant(query):
+            logger.info("Query is vague/irrelevant - returning empty list (no feature extraction needed)")
+            return []
+        
         try:
             # ALWAYS get Estimates.txt as primary reference - this is critical
             estimates_txt = ""
@@ -485,7 +490,12 @@ Return ONLY valid JSON, no explanations. Base your estimate on the schema values
             combined_context = "\n\n".join(context_parts) if context_parts else estimates_txt if estimates_txt else ""
             
             if not combined_context:
-                logger.error("No context available - this should not happen!")
+                logger.error("No context available - checking if query is vague/irrelevant")
+                # If no context and no features extracted, verify if query is vague
+                if self._is_query_vague_or_irrelevant(query):
+                    logger.info("Query is vague/irrelevant - returning empty list")
+                    return []
+                logger.warning("No context but query seems relevant - returning empty (should not happen)")
                 return []
             
             logger.info(f"Combined context length: {len(combined_context)} characters from {len(context_parts)} sources (Estimates.txt MANDATORY)")
@@ -808,6 +818,11 @@ ALWAYS base estimates on context (if available) OR schema values - build FROM co
                 logger.info("Successfully generated estimate using model's own knowledge after exception")
                 return final_fallback
             
+            # Before returning basic estimate, check if query is vague/irrelevant
+            if self._is_query_vague_or_irrelevant(query):
+                logger.info("Query is vague/irrelevant - returning empty list")
+                return []
+            
             # This should never happen, but if it does, return a basic estimate
             logger.error("Even final fallback failed after exception - returning basic estimate")
             return [{
@@ -859,6 +874,74 @@ ALWAYS base estimates on context (if available) OR schema values - build FROM co
                     "base_time_hours_max": max_hours
                 })
         return normalized
+    
+    def _is_query_vague_or_irrelevant(self, query: str) -> bool:
+        """Use LLM to determine if query is vague or irrelevant (not asking for feature estimate)"""
+        if not self.client:
+            return False
+        
+        try:
+            prompt = f"""Analyze the following user query and determine if it is asking for a feature development estimate.
+
+Query: "{query}"
+
+CRITICAL: Determine if this query is:
+1. ASKING FOR A FEATURE ESTIMATE (relevant):
+   - Examples: "add payment integration", "uber eats integration", "AWS integration", "add HYP payment method"
+   - These queries describe a specific feature/functionality to be built
+   - Set "is_vague_or_irrelevant" to FALSE
+
+2. VAGUE/IRRELEVANT (not asking for estimate):
+   - Examples: "requirements are in file attached", "see attached file", "check the document", "requirements in file", "see document", "hello", "how are you", "what can you do"
+   - These queries are just references to files, greetings, or general questions
+   - They do NOT describe what feature needs to be built
+   - Set "is_vague_or_irrelevant" to TRUE
+
+IMPORTANT: If the query only mentions files/documents without describing a feature, it is VAGUE.
+If the query describes a specific feature/functionality to estimate, it is RELEVANT.
+
+Respond with ONLY a JSON object:
+{{
+    "is_vague_or_irrelevant": true/false,
+    "reason": "brief explanation"
+}}"""
+
+            max_tokens_param = self._get_max_tokens_param(100)
+            response = self.client.chat.completions.create(
+                model=settings.OPENAI_MODEL,
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant that analyzes queries to determine if they are asking for feature development estimates."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3,
+                **max_tokens_param
+            )
+            
+            content = response.choices[0].message.content.strip()
+            logger.debug(f"LLM vague query check response: {content}")
+            
+            # Try to parse JSON response
+            try:
+                # Remove markdown code blocks if present
+                content = re.sub(r'```json\s*', '', content)
+                content = re.sub(r'```\s*', '', content)
+                result = json.loads(content)
+                is_vague = result.get("is_vague_or_irrelevant", False)
+                reason = result.get("reason", "")
+                logger.info(f"Query vague check: {is_vague} - {reason}")
+                return is_vague
+            except json.JSONDecodeError:
+                # If JSON parsing fails, check if response contains keywords
+                content_lower = content.lower()
+                if "true" in content_lower or "vague" in content_lower or "irrelevant" in content_lower:
+                    logger.info("LLM indicated query is vague (from text analysis)")
+                    return True
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error checking if query is vague: {e}")
+            # On error, assume query is relevant (don't block legitimate queries)
+            return False
     
     def _fallback_feature_extraction(self, query: str, context: str) -> List[Dict]:
         """Fallback: Extract features using intelligent analysis when JSON parsing fails"""

@@ -560,7 +560,7 @@ CRITICAL ESTIMATION INSTRUCTIONS:
    - Example: "ai_orchestration_for_integrations": {{"min": 82, "max": 90}}
      → Use 82-90 hours DIRECTLY (apply lower/optimistic range: 75-85 hours)
    - DO NOT multiply or add these values - use them as base
-   - Apply 10-15% LOWER/OPTIMISTIC reduction for Pakistan-based team efficiency
+   - Apply 25-30% LOWER/OPTIMISTIC reduction for Pakistan-based team efficiency
    - If exact match exists, use those min/max values directly with optimistic reduction
    - If similar feature exists, use those values as reference with small adjustment
    - Check "estimation_rules_for_new_features" section for guidance on feature types
@@ -585,7 +585,7 @@ CRITICAL ESTIMATION INSTRUCTIONS:
    - Be OPTIMISTIC but realistic - Pakistan-based team is experienced, fast, and efficient
    - Don't overestimate - consider team size, parallel capacity, and Pakistan-based efficiency
    - If schema has range (min/max), use the LOWER end as your base
-   - Apply 10-20% reduction for Pakistan-based team efficiency and parallel work capacity
+   - Apply 25-30% reduction for Pakistan-based team efficiency and parallel work capacity
 
 5. FEATURE MAPPING:
    - Map the requested feature to the closest match in the schema

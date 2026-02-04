@@ -890,14 +890,16 @@ CRITICAL: Determine if this query is:
    - Examples: "add payment integration", "uber eats integration", "AWS integration", "add HYP payment method"
    - These queries describe a specific feature/functionality to be built
    - Set "is_vague_or_irrelevant" to FALSE
+   - If the attached file has multiple features, then too query is not Vague
 
 2. VAGUE/IRRELEVANT (not asking for estimate):
    - Examples: "requirements are in file attached", "see attached file", "check the document", "requirements in file", "see document", "hello", "how are you", "what can you do"
    - These queries are just references to files, greetings, or general questions
    - They do NOT describe what feature needs to be built
    - Set "is_vague_or_irrelevant" to TRUE
+   - If the attached file has multiple relevant features then query is not vague.
 
-IMPORTANT: If the query only mentions files/documents without describing a feature, it is VAGUE.
+IMPORTANT: If query or file has relevant features then query is not vague, else vague.
 If the query describes a specific feature/functionality to estimate, it is RELEVANT.
 
 Respond with ONLY a JSON object:

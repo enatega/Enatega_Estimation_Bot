@@ -73,10 +73,14 @@ async def create_estimate(
         # Add text requirements if provided
         if requirements:
             combined_requirements += requirements + "\n\n"
+            logger.info(f"User query/description provided: {requirements}")
         
         # Extract text from uploaded file if provided
         if file:
-            logger.info(f"Processing uploaded file: {file.filename}")
+            if requirements:
+                logger.info(f"Processing uploaded file '{file.filename}' with user query: '{requirements}'")
+            else:
+                logger.info(f"Processing uploaded file: {file.filename} (no user query provided)")
             extractor = DocumentExtractor()
             
             # Save uploaded file temporarily
@@ -102,10 +106,14 @@ async def create_estimate(
                 
                 combined_requirements += f"Content from {file.filename}:\n{file_text}\n\n"
                 logger.info(f"Extracted {len(file_text)} characters from {file.filename}")
+                
             finally:
                 # Clean up temporary file
                 if os.path.exists(tmp_path):
                     os.unlink(tmp_path)
+        
+        # Log the complete combined requirements
+        logger.info(f"Combined requirements (user query + file contents):\n{combined_requirements}")
         
         if not combined_requirements.strip():
             raise HTTPException(

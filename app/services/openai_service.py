@@ -560,7 +560,7 @@ CRITICAL ESTIMATION INSTRUCTIONS:
    - Example: "ai_orchestration_for_integrations": {{"min": 82, "max": 90}}
      → Use 82-90 hours DIRECTLY (apply lower/optimistic range: 75-85 hours)
    - DO NOT multiply or add these values - use them as base
-   - Apply 40-45% LOWER/OPTIMISTIC reduction for Pakistan-based team efficiency
+   - Apply 50-60% LOWER/OPTIMISTIC reduction for Pakistan-based team efficiency
    - If exact match exists, use those min/max values directly with optimistic reduction
    - If similar feature exists, use those values as reference with small adjustment
    - Check "estimation_rules_for_new_features" section for guidance on feature types
@@ -585,7 +585,7 @@ CRITICAL ESTIMATION INSTRUCTIONS:
    - Be OPTIMISTIC but realistic - Pakistan-based team is experienced, fast, and efficient
    - Don't overestimate - consider team size, parallel capacity, and Pakistan-based efficiency
    - If schema has range (min/max), use the LOWER end as your base
-   - Apply 40-45% reduction for Pakistan-based team efficiency and parallel work capacity
+   - Apply 50-60% reduction for Pakistan-based team efficiency and parallel work capacity
 
 5. FEATURE MAPPING:
    - Map the requested feature to the closest match in the schema
@@ -643,7 +643,7 @@ ESTIMATION APPROACH:
    - Example: "uber_eats_style_delivery_integration": {{"min": 78, "max": 100}}
      → Use 78-100 hours DIRECTLY, then apply 40-45% lower/optimistic (70-95 hours)
    - DO NOT multiply or combine multiple features unless explicitly requested
-   - Apply ±40-45% range (lean toward LOWER side) for Pakistan-based team
+   - Apply ±50-60% range (lean toward LOWER side) for Pakistan-based team
    - Check "estimation_rules_for_new_features" for feature type guidance
 
 3. ESTIMATION RULES (from schema):
@@ -656,14 +656,14 @@ ESTIMATION APPROACH:
    - Pakistan-based, efficient team
    - Parallel work capacity
    - Lower estimates due to team size and efficiency
-   - Apply 40-45% reduction for Pakistan-based team efficiency
+   - Apply 50-60% reduction for Pakistan-based team efficiency
 
 5. ESTIMATE GENERATION (LOWER/OPTIMISTIC):
    - ALWAYS provide estimates on the LOWER/OPTIMISTIC side
    
    CRITICAL FOR ESTIMATES.TXT:
    - If Estimates.txt shows {{"min": 78, "max": 100}}, use those EXACT values
-   - Apply 40-45% LOWER reduction: 78-100 → 70-95 hours
+   - Apply 50-60% LOWER reduction: 78-100 → 70-95 hours
    - DO NOT combine multiple features - use only the matching feature
    - If user asks for "uber eats integration", return ONLY that feature's estimate
    
@@ -671,7 +671,7 @@ ESTIMATION APPROACH:
    - If context or schema shows 50 hours, use 40-55 hours (lower end)
    - Factor in parallel work with 15-20 developers
    - Be OPTIMISTIC but realistic
-   - Apply 40-50% reduction for Pakistan-based team efficiency
+   - Apply 50-60% reduction for Pakistan-based team efficiency
 
 6. FEATURE MAPPING:
    - Map to closest feature in context (if available) OR schema category
@@ -886,8 +886,8 @@ ALWAYS base estimates on context (if available) OR schema values - build FROM co
 Query: "{query}"
 
 CRITICAL: Determine if this query is:
-1. ASKING FOR A FEATURE ESTIMATE (relevant):
-   - Examples: "add payment integration", "uber eats integration", "AWS integration", "add HYP payment method"
+1. ASKING FOR A FEATURE or Project Development ESTIMATE (relevant):
+   - Examples: "add payment integration", "uber eats integration", "AWS integration", "add HYP payment method", "I want a calling agent" etc.
    - These queries describe a specific feature/functionality to be built
    - Set "is_vague_or_irrelevant" to FALSE
    - If the attached file has multiple features, then too query is not Vague

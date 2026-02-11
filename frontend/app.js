@@ -67,6 +67,24 @@ function formatEstimateResponse(estimate) {
     const costMin = estimate.estimated_cost_min;
     const costMax = estimate.estimated_cost_max;
     
+    // Format feature breakdown if available
+    let breakdownHtml = '';
+    if (estimate.feature_breakdown) {
+        // Convert newlines to <br> and preserve bullet points
+        const breakdownText = estimate.feature_breakdown
+            .replace(/\n/g, '<br>')
+            .replace(/•/g, '•');
+        
+        breakdownHtml = `
+            <div class="feature-breakdown" style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #667eea;">
+                <h4 style="margin-top: 0; margin-bottom: 12px; color: #667eea; font-size: 16px;">📋 Feature Breakdown</h4>
+                <div style="line-height: 1.8; color: #333;">
+                    ${breakdownText}
+                </div>
+            </div>
+        `;
+    }
+    
     return `
         <div class="estimate-result">
             <h3 style="margin-bottom: 20px; color: #667eea;">📊 Estimate Result</h3>
@@ -82,6 +100,7 @@ function formatEstimateResponse(estimate) {
                     <span class="range-note">Range estimate</span>
                 </div>
             </div>
+            ${breakdownHtml}
         </div>
     `;
 }

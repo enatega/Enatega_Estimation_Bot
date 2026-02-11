@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from fastapi.responses import JSONResponse
+from typing import List
 from app.models.schemas import (
     EstimateRequest, EstimateResponse, ChatRequest, ChatResponse,
-    FeatureListResponse, Feature
+    FeatureListResponse, Feature, FeatureBreakdown
 )
 from app.services.estimation_engine import EstimationEngine
 from app.services.openai_service import OpenAIService
@@ -43,6 +44,28 @@ def get_openai_service():
 
 def get_estimation_engine(hourly_rate: float = None):
     return EstimationEngine(hourly_rate)
+
+def _format_feature_breakdown(breakdown: List[FeatureBreakdown]) -> str:
+    """Format feature breakdown into bullet points with time ranges"""
+    if not breakdown:
+        return "No features identified for estimation."
+    
+    lines = []
+    for item in breakdown:
+        feature_name = item.feature
+        time_min = item.time_min if item.time_min is not None else item.time_hours * 0.9
+        time_max = item.time_max if item.time_max is not None else item.time_hours * 1.1
+        
+        # Format as bullet point with feature name and time range
+        line = f"• {feature_name}: {time_min:.1f} - {time_max:.1f} hours"
+        
+        # Add description if available
+        if item.description:
+            line += f" ({item.description})"
+        
+        lines.append(line)
+    
+    return "\n".join(lines)
 
 @router.get("/health")
 async def health_check():
@@ -147,7 +170,7 @@ async def create_estimate(
                 estimated_time_hours_max=0.0,
                 estimated_cost_min=0.0,
                 estimated_cost_max=0.0,
-                feature_breakdown=[]
+                feature_breakdown="No features identified for estimation."
             )
         
         # Create estimation engine - use $30/hour as default (company rate)
@@ -159,12 +182,16 @@ async def create_estimate(
         # Calculate totals (returns min/max ranges)
         total_time_min, total_time_max, total_cost_min, total_cost_max = engine.calculate_total(breakdown)
         
-        # Return simplified response with time and cost ranges
+        # Generate feature breakdown text in bullet points format
+        feature_breakdown_text = _format_feature_breakdown(breakdown)
+        
+        # Return response with time, cost ranges, and feature breakdown
         return EstimateResponse(
             estimated_time_hours_min=total_time_min,
             estimated_time_hours_max=total_time_max,
             estimated_cost_min=total_cost_min,
-            estimated_cost_max=total_cost_max
+            estimated_cost_max=total_cost_max,
+            feature_breakdown=feature_breakdown_text
         )
     
     except HTTPException:

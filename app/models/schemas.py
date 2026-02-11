@@ -31,6 +31,7 @@ class EstimateResponse(BaseModel):
     estimated_time_hours_max: float = Field(..., description="Maximum estimated time in hours")
     estimated_cost_min: float = Field(..., description="Minimum estimated cost in dollars")
     estimated_cost_max: float = Field(..., description="Maximum estimated cost in dollars")
+    feature_breakdown: Optional[str] = Field(None, description="Detailed feature breakdown with time ranges in bullet points format")
 
 class ChatMessage(BaseModel):
     role: str  # user, assistant, system

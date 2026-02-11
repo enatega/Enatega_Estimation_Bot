@@ -1,5 +1,5 @@
 from typing import List, Dict, Optional
-from app.models.schemas import FeatureBreakdown, EstimateResponse
+from app.models.schemas import FeatureBreakdown, EstimateResponse, SubFeature
 from app.core.config import settings
 import logging
 import re
@@ -54,6 +54,20 @@ class EstimationEngine:
             cost_min = final_time_min * self.hourly_rate
             cost_max = final_time_max * self.hourly_rate
             
+            # Process sub-features if available
+            sub_features_list = None
+            if "sub_features" in feature and feature["sub_features"]:
+                sub_features_list = []
+                for sub_feat in feature["sub_features"]:
+                    # Apply buffer to sub-feature times
+                    sub_time_min = sub_feat.get("time_min", 0) * (1 + self.buffer_percentage)
+                    sub_time_max = sub_feat.get("time_max", sub_time_min * 1.2) * (1 + self.buffer_percentage)
+                    sub_features_list.append(SubFeature(
+                        name=sub_feat.get("name", "Unknown Sub-feature"),
+                        time_min=round(sub_time_min, 2),
+                        time_max=round(sub_time_max, 2)
+                    ))
+            
             breakdown.append(FeatureBreakdown(
                 feature=feature.get("name", "Unknown"),
                 description=feature.get("description"),
@@ -63,7 +77,8 @@ class EstimationEngine:
                 time_min=round(final_time_min, 2),
                 time_max=round(final_time_max, 2),
                 cost_min=round(cost_min, 2),
-                cost_max=round(cost_max, 2)
+                cost_max=round(cost_max, 2),
+                sub_features=sub_features_list
             ))
         
         return breakdown

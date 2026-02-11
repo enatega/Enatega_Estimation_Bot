@@ -338,7 +338,7 @@ Return ONLY valid JSON, no explanations. Base your estimate on the schema values
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.3,
-                **self._get_max_tokens_param(1000)
+                **self._get_max_tokens_param(2000)  # Increased to accommodate sub-features
             )
             
             content = response.choices[0].message.content.strip()
@@ -610,6 +610,14 @@ CRITICAL ESTIMATION INSTRUCTIONS:
    - Provide OPTIMISTIC but realistic estimate - always on the lower side
    - Remember: Pakistan-based teams are efficient and can work in parallel effectively
 
+7. SUB-FEATURES BREAKDOWN (CRITICAL - REQUIRED):
+   - Break down the main feature into smaller sub-features/components
+   - Each sub-feature should have its own time estimate (min/max hours)
+   - Sub-features should represent logical work components (e.g., API Integration, Backend Service, Webhook Handler, UI Updates, Testing)
+   - The sum of all sub-feature hours should approximately equal the total feature hours
+   - Provide 4-8 sub-features that make up the total estimate
+   - Each sub-feature should be a distinct work component
+
 Return COMPLETE JSON array (ensure valid JSON, all brackets closed):
 [
   {{
@@ -618,9 +626,23 @@ Return COMPLETE JSON array (ensure valid JSON, all brackets closed):
     "base_time_hours_min": <min_hours>,
     "base_time_hours_max": <max_hours>,
     "complexity_level": "simple|medium|complex",
-    "category": "Category"
+    "category": "Category",
+    "sub_features": [
+      {{
+        "name": "Sub-feature 1 Name",
+        "time_min": <min_hours_for_sub_feature>,
+        "time_max": <max_hours_for_sub_feature>
+      }},
+      {{
+        "name": "Sub-feature 2 Name",
+        "time_min": <min_hours_for_sub_feature>,
+        "time_max": <max_hours_for_sub_feature>
+      }}
+    ]
   }}
-]"""
+]
+
+IMPORTANT: The sub_features array is REQUIRED. Break down the total hours into logical components."""
             
             system_prompt = """You are an expert estimation analyst specializing in software development time estimation.
 
@@ -689,7 +711,7 @@ ALWAYS base estimates on context (if available) OR schema values - build FROM co
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.1,  # Very low for accurate extraction
-                **self._get_max_tokens_param(2500)  # Increased to ensure complete JSON
+                **self._get_max_tokens_param(3000)  # Increased to ensure complete JSON with sub-features
             )
             
             content = response.choices[0].message.content.strip()
@@ -835,9 +857,12 @@ ALWAYS base estimates on context (if available) OR schema values - build FROM co
             }]
     
     def _normalize_features(self, features: List[Dict]) -> List[Dict]:
-        """Normalize features to have min/max hours with reasonable ranges"""
+        """Normalize features to have min/max hours with reasonable ranges, preserving sub_features"""
         normalized = []
         for feature in features:
+            normalized_feature = {}
+            
+            # Normalize main feature time ranges
             if "base_time_hours_min" in feature and "base_time_hours_max" in feature:
                 # Ensure range is reasonable (not more than 50% variance)
                 min_h = feature["base_time_hours_min"]
@@ -845,7 +870,7 @@ ALWAYS base estimates on context (if available) OR schema values - build FROM co
                 # If range is too wide, cap it at 30% variance
                 if max_h > min_h * 1.5:
                     max_h = min_h * 1.3
-                normalized.append({
+                normalized_feature.update({
                     **feature,
                     "base_time_hours_min": round(min_h, 1),
                     "base_time_hours_max": round(max_h, 1)
@@ -853,7 +878,7 @@ ALWAYS base estimates on context (if available) OR schema values - build FROM co
             elif "base_time_hours" in feature:
                 # Convert single value to range (±15% for tighter range)
                 base = feature["base_time_hours"]
-                normalized.append({
+                normalized_feature.update({
                     **feature,
                     "base_time_hours_min": round(base * 0.85, 1),
                     "base_time_hours_max": round(base * 1.15, 1)
@@ -868,11 +893,33 @@ ALWAYS base estimates on context (if available) OR schema values - build FROM co
                 else:  # medium
                     min_hours, max_hours = 40, 65
                 
-                normalized.append({
+                normalized_feature.update({
                     **feature,
                     "base_time_hours_min": min_hours,
                     "base_time_hours_max": max_hours
                 })
+            
+            # Preserve and normalize sub_features if they exist
+            if "sub_features" in feature and feature["sub_features"]:
+                normalized_sub_features = []
+                for sub_feat in feature["sub_features"]:
+                    if "time_min" in sub_feat and "time_max" in sub_feat:
+                        normalized_sub_features.append({
+                            "name": sub_feat.get("name", "Unknown Sub-feature"),
+                            "time_min": round(sub_feat["time_min"], 1),
+                            "time_max": round(sub_feat["time_max"], 1)
+                        })
+                    elif "time" in sub_feat:
+                        # Convert single value to range
+                        base_time = sub_feat["time"]
+                        normalized_sub_features.append({
+                            "name": sub_feat.get("name", "Unknown Sub-feature"),
+                            "time_min": round(base_time * 0.9, 1),
+                            "time_max": round(base_time * 1.1, 1)
+                        })
+                normalized_feature["sub_features"] = normalized_sub_features
+            
+            normalized.append(normalized_feature)
         return normalized
     
     def _is_query_vague_or_irrelevant(self, query: str) -> bool:

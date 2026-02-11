@@ -46,7 +46,7 @@ def get_estimation_engine(hourly_rate: float = None):
     return EstimationEngine(hourly_rate)
 
 def _format_feature_breakdown(breakdown: List[FeatureBreakdown]) -> str:
-    """Format feature breakdown into bullet points with time ranges"""
+    """Format feature breakdown into bullet points with time ranges and sub-features"""
     if not breakdown:
         return "No features identified for estimation."
     
@@ -56,14 +56,15 @@ def _format_feature_breakdown(breakdown: List[FeatureBreakdown]) -> str:
         time_min = item.time_min if item.time_min is not None else item.time_hours * 0.9
         time_max = item.time_max if item.time_max is not None else item.time_hours * 1.1
         
-        # Format as bullet point with feature name and time range
+        # Format main feature as bullet point with time range
         line = f"• {feature_name}: {time_min:.1f} - {time_max:.1f} hours"
-        
-        # Add description if available
-        if item.description:
-            line += f" ({item.description})"
-        
         lines.append(line)
+        
+        # Add sub-features if available
+        if item.sub_features and len(item.sub_features) > 0:
+            for sub_feat in item.sub_features:
+                sub_line = f"  └─ {sub_feat.name}: {sub_feat.time_min:.1f} - {sub_feat.time_max:.1f} hours"
+                lines.append(sub_line)
     
     return "\n".join(lines)
 

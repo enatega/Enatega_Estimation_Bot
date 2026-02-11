@@ -11,6 +11,11 @@ class Feature(BaseModel):
     dependencies: List[str] = []
     category: Optional[str] = None
 
+class SubFeature(BaseModel):
+    name: str
+    time_min: float
+    time_max: float
+
 class FeatureBreakdown(BaseModel):
     feature: str
     description: Optional[str] = None
@@ -21,6 +26,7 @@ class FeatureBreakdown(BaseModel):
     time_max: Optional[float] = None
     cost_min: Optional[float] = None
     cost_max: Optional[float] = None
+    sub_features: Optional[List[SubFeature]] = None
 
 class EstimateRequest(BaseModel):
     requirements: Optional[str] = Field(None, description="Client requirements in natural language (optional if file provided)")

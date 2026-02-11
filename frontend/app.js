@@ -70,15 +70,17 @@ function formatEstimateResponse(estimate) {
     // Format feature breakdown if available
     let breakdownHtml = '';
     if (estimate.feature_breakdown) {
-        // Convert newlines to <br> and preserve bullet points
+        // Convert newlines to <br> and preserve formatting
+        // Handle indentation for sub-features (└─ prefix)
         const breakdownText = estimate.feature_breakdown
             .replace(/\n/g, '<br>')
-            .replace(/•/g, '•');
+            .replace(/•/g, '•')
+            .replace(/  └─/g, '&nbsp;&nbsp;&nbsp;&nbsp;└─'); // Preserve indentation
         
         breakdownHtml = `
             <div class="feature-breakdown" style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #667eea;">
                 <h4 style="margin-top: 0; margin-bottom: 12px; color: #667eea; font-size: 16px;">📋 Feature Breakdown</h4>
-                <div style="line-height: 1.8; color: #333;">
+                <div style="line-height: 1.8; color: #333; font-family: 'Courier New', monospace; white-space: pre-wrap;">
                     ${breakdownText}
                 </div>
             </div>

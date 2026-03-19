@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 from typing import List
 from app.models.schemas import (
     EstimateRequest, EstimateResponse, ChatRequest, ChatResponse,
-    FeatureListResponse, Feature, FeatureBreakdown
+    FeatureListResponse, Feature, FeatureBreakdown, FeatureDescription
 )
 from app.services.estimation_engine import EstimationEngine
 from app.services.openai_service import OpenAIService
@@ -171,7 +171,8 @@ async def create_estimate(
                 estimated_time_hours_max=0.0,
                 estimated_cost_min=0.0,
                 estimated_cost_max=0.0,
-                feature_breakdown="No features identified for estimation."
+                feature_breakdown="No features identified for estimation.",
+                features_description=[]
             )
         
         # Create estimation engine - use $30/hour as default (company rate)
@@ -186,13 +187,20 @@ async def create_estimate(
         # Generate feature breakdown text in bullet points format
         feature_breakdown_text = _format_feature_breakdown(breakdown)
         
-        # Return response with time, cost ranges, and feature breakdown
+        # Build features description list from breakdown
+        features_description = [
+            FeatureDescription(feature=item.feature, description=item.description)
+            for item in breakdown
+        ]
+
+        # Return response with time, cost ranges, feature breakdown, and descriptions
         return EstimateResponse(
             estimated_time_hours_min=total_time_min,
             estimated_time_hours_max=total_time_max,
             estimated_cost_min=total_cost_min,
             estimated_cost_max=total_cost_max,
-            feature_breakdown=feature_breakdown_text
+            feature_breakdown=feature_breakdown_text,
+            features_description=features_description
         )
     
     except HTTPException:

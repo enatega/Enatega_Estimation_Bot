@@ -928,26 +928,28 @@ ALWAYS base estimates on context (if available) OR schema values - build FROM co
             return False
         
         try:
-            prompt = f"""Analyze the following user query and determine if it is asking for a feature development estimate.
+            prompt = f"""Analyze the following user query and determine if it is relevant to the Enatega platform estimation bot.
 
 Query: "{query}"
 
+CONTEXT: This bot ONLY handles feature estimation for the Enatega platform — a multivendor food delivery system (similar to Foodpanda/Uber Eats). It estimates time and cost for building features ON TOP of or WITHIN the Enatega platform.
+
 CRITICAL: Determine if this query is:
-1. ASKING FOR A FEATURE or Project Development ESTIMATE (relevant):
-   - Examples: "add payment integration", "uber eats integration", "AWS integration", "add HYP payment method", "I want a calling agent" etc.
-   - These queries describe a specific feature/functionality to be built
-   - Set "is_vague_or_irrelevant" to FALSE
-   - If the attached file has multiple features, then too query is not Vague
+1. RELEVANT (set "is_vague_or_irrelevant" to FALSE):
+   - Asking for a feature estimate related to food delivery, restaurant management, rider management, customer ordering, vendor dashboards, payment gateways, AI features for delivery platforms, or any Enatega-related functionality
+   - Examples: "add payment integration", "uber eats style delivery", "add HYP payment method", "rider tracking feature", "vendor dashboard analytics", "loyalty program for customers"
+   - If the attached file contains features related to food delivery or Enatega platform
 
-2. VAGUE/IRRELEVANT (not asking for estimate):
-   - Examples: "requirements are in file attached", "see attached file", "check the document", "requirements in file", "see document", "hello", "how are you", "what can you do"
-   - These queries are just references to files, greetings, or general questions
-   - They do NOT describe what feature needs to be built
-   - Set "is_vague_or_irrelevant" to TRUE
-   - If the attached file has multiple relevant features then query is not vague.
+2. IRRELEVANT - OUT OF SCOPE (set "is_vague_or_irrelevant" to TRUE):
+   - Asking for estimates of completely unrelated products or platforms
+   - Examples: "I want an expense calculator iOS app", "build me an AI services website", "create a hospital management system", "I need an e-commerce store for clothes", "build a fitness tracking app"
+   - These are NOT related to Enatega or food delivery platforms
 
-IMPORTANT: If query or file has relevant features then query is not vague, else vague.
-If the query describes a specific feature/functionality to estimate, it is RELEVANT.
+3. VAGUE/IRRELEVANT (set "is_vague_or_irrelevant" to TRUE):
+   - Greetings, general questions, or file references with no feature details
+   - Examples: "hello", "how are you", "see attached file", "requirements in document"
+
+IMPORTANT: Only return FALSE if the query is about features for a food delivery / Enatega-type platform. Everything else is TRUE.
 
 Respond with ONLY a JSON object:
 {{
@@ -1232,7 +1234,7 @@ CRITICAL:
             
             # If not estimation-related, redirect politely
             if not is_estimation_query and not conversation_history:
-                return "I specialize in providing time and cost estimates for client onboarding systems. Could you tell me about the features you'd like to estimate?"
+                return "I specialize in providing time and cost estimates for the Enatega delivery platform. Please describe a feature you'd like to build — for example, a payment gateway, rider tracking, or vendor dashboard etc."
             
             # Get relevant context from vector store for this query
             context = ""

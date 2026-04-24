@@ -165,13 +165,13 @@ async def create_estimate(
         
         # If no features extracted, return 0 estimate (query was vague/irrelevant)
         if not features:
-            logger.info("No features extracted - returning 0 estimate (query is vague/irrelevant)")
+            logger.info("No features extracted - returning 0 estimate (query is vague/irrelevant/out-of-scope)")
             return EstimateResponse(
                 estimated_time_hours_min=0.0,
                 estimated_time_hours_max=0.0,
                 estimated_cost_min=0.0,
                 estimated_cost_max=0.0,
-                feature_breakdown="No features identified for estimation.",
+                feature_breakdown="I can only provide estimates for features related to the Enatega delivery platform. Please describe a feature you'd like to add to your delivery system.",
                 features_description=[]
             )
         

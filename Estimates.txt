@@ -169,6 +169,14 @@
     "with_integrations_max": 822
   },
 
+  "data_and_onboarding": {
+    "menu_items_bulk_upload": {
+      "description": "Upload/import menu items from multiple restaurants into Enatega including data mapping, CSV/Excel import, category/variant/add-on mapping, image handling, validation, and QA",
+      "min": 18,
+      "max": 24
+    }
+  },
+
   "estimation_rules_for_new_features": {
     "ui_only_single_app": "8-15",
     "ui_plus_backend_single_role": "20-35",

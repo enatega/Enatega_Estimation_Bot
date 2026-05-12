@@ -299,7 +299,7 @@ CRITICAL ESTIMATION INSTRUCTIONS:
    - The rules provide hour ranges for different feature complexities
 
 3. TEAM CONTEXT:
-   - Team: 15-20 full-stack developers and engineers
+   - Team: 20-25 full-stack developers and engineers
    - Location: Pakistan (efficient, fast delivery)
    - Team works FAST and efficiently
    - Multiple developers can work in parallel
@@ -308,7 +308,7 @@ CRITICAL ESTIMATION INSTRUCTIONS:
 4. ESTIMATE GENERATION (LOWER/OPTIMISTIC SIDE):
    - ALWAYS provide estimates on the LOWER/OPTIMISTIC side
    - If schema shows 50 hours for similar feature, use 40-55 hours (lower end)
-   - Factor in parallel work: With 15-20 developers, work can be divided efficiently
+   - Factor in parallel work: With 20-25 developers, work can be divided efficiently
    - Be OPTIMISTIC but realistic - team is experienced and efficient
    - Don't overestimate - consider team size and parallel capacity
    - If schema has range (min/max), use the LOWER end as your base
@@ -541,6 +541,11 @@ Requirements: {query}
 
 CRITICAL ESTIMATION INSTRUCTIONS:
 
+0. ABSOLUTE RULE - NEVER INCLUDE:
+   - Licensing costs, platform purchase costs, plan costs (Base/Premium/Enterprise)
+   - Any cost that is NOT development/implementation work hours
+   - Only estimate DEVELOPMENT TIME (hours) for building/implementing features
+
 1. PRIORITY METHOD - CHECK CONTEXT FIRST:
    - FIRST: Check if the context above contains information about the requested feature
    - If context has relevant feature information (hours, estimates, similar features), USE THAT as PRIMARY reference
@@ -571,7 +576,7 @@ CRITICAL ESTIMATION INSTRUCTIONS:
    - The rules provide hour ranges for different feature complexities
 
 3. TEAM CONTEXT (ALWAYS CONSIDER):
-   - Team: 15-20 full-stack developers and engineers
+   - Team: 20-25 full-stack developers and engineers
    - Location: Pakistan (efficient, fast delivery)
    - Team works FAST and efficiently
    - Multiple developers can work in parallel
@@ -581,7 +586,7 @@ CRITICAL ESTIMATION INSTRUCTIONS:
    - CRITICAL: ALWAYS provide estimates on the LOWER/OPTIMISTIC side
    - This is for a Pakistan-based team (20-25 developers, fast and efficient)
    - If context or Estimates.txt shows 50 hours for similar feature, use 40-55 hours (lower end)
-   - Factor in parallel work: With 15-20 developers, work can be divided efficiently
+   - Factor in parallel work: With 20-25 developers, work can be divided efficiently
    - Be OPTIMISTIC but realistic - Pakistan-based team is experienced, fast, and efficient
    - Don't overestimate - consider team size, parallel capacity, and Pakistan-based efficiency
    - If schema has range (min/max), use the LOWER end as your base
@@ -652,6 +657,7 @@ YOUR ROLE:
 - SECOND: Use Estimates.txt JSON SCHEMA as fallback (if context doesn't have info)
 - Build estimates FROM context OR schema structure
 - Generate estimates on the LOWER/OPTIMISTIC side for Pakistan-based team
+- NEVER include licensing costs, platform purchase costs, or plan costs — only development hours
 
 ESTIMATION APPROACH:
 1. PRIORITY: Check context first
@@ -674,7 +680,7 @@ ESTIMATION APPROACH:
    - The rules provide hour ranges for different feature complexities
 
 4. TEAM CONTEXT (always consider):
-   - 15-20 full-stack developers available
+   - 20-25 full-stack developers available
    - Pakistan-based, efficient team
    - Parallel work capacity
    - Lower estimates due to team size and efficiency
@@ -691,7 +697,7 @@ ESTIMATION APPROACH:
    
    GENERAL RULES:
    - If context or schema shows 50 hours, use 40-55 hours (lower end)
-   - Factor in parallel work with 15-20 developers
+   - Factor in parallel work with 20-25 developers
    - Be OPTIMISTIC but realistic
    - Apply 50-60% reduction for Pakistan-based team efficiency
 
@@ -1023,11 +1029,11 @@ ANALYSIS INSTRUCTIONS:
    - Technology stack and infrastructure
 4. Generate intelligent estimates considering:
    - Estimates.txt values (if feature exists) as base reference
-   - Team capabilities: 15-20 full-stack developers and engineers available
+   - Team capabilities: 20-25 full-stack developers and engineers available
    - Team efficiency: FAST, experienced, Pakistan-based team
    - Project complexity
-   - Realistic but OPTIMISTIC development timelines (with 15-20 developers in parallel)
-   - Parallel work possibilities: Divide work across 15-20 developers efficiently
+   - Realistic but OPTIMISTIC development timelines (with 20-25 developers in parallel)
+   - Parallel work possibilities: Divide work across 20-25 developers efficiently
    - When predicting from own knowledge: Be OPTIMISTIC - with large team, estimates should be efficient
 
 Return JSON array (ONLY JSON, no explanations):

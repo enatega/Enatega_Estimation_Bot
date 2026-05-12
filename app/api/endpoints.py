@@ -171,7 +171,7 @@ async def create_estimate(
                 estimated_time_hours_max=0.0,
                 estimated_cost_min=0.0,
                 estimated_cost_max=0.0,
-                feature_breakdown="I can only provide estimates for features related to the Enatega delivery platform. Please describe a feature you'd like to add to your delivery system.",
+                feature_breakdown="I can only provide estimates for features related to the Enatega platform. Please describe a feature you'd like to add to your delivery system.",
                 features_description=[]
             )
         

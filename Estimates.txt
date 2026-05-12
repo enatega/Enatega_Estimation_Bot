@@ -150,8 +150,8 @@
 
   "external_integrations": {
     "uber_eats_style_delivery_integration": {
-      "min": 78,
-      "max": 100
+      "min": 38,
+      "max": 48
     },
     "ai_orchestration_for_integrations": {
       "min": 82,

@@ -938,24 +938,25 @@ ALWAYS base estimates on context (if available) OR schema values - build FROM co
 
 Query: "{query}"
 
-CONTEXT: This bot ONLY handles feature estimation for the Enatega platform — a multivendor food delivery system (similar to Foodpanda/Uber Eats). It estimates time and cost for building features ON TOP of or WITHIN the Enatega platform.
+CONTEXT: This bot handles feature estimation for the Enatega platform — a multivendor food delivery system (similar to Foodpanda/Uber Eats). It estimates time and cost for building or integrating ANY software feature that could be part of such a platform.
 
 CRITICAL: Determine if this query is:
 1. RELEVANT (set "is_vague_or_irrelevant" to FALSE):
-   - Asking for a feature estimate related to food delivery, restaurant management, rider management, customer ordering, vendor dashboards, payment gateways, AI features for delivery platforms, or any Enatega-related functionality
-   - Examples: "add payment integration", "uber eats style delivery", "add HYP payment method", "rider tracking feature", "vendor dashboard analytics", "loyalty program for customers"
-   - If the attached file contains features related to food delivery or Enatega platform
+   - Asking for a feature estimate for ANY software feature that can be built or integrated into a platform
+   - This includes: authentication (OTP, 2FA, biometrics), payment gateways, notifications, tracking, dashboards, analytics, APIs, integrations, AI features, security features, user management, etc.
+   - Examples: "add OTP validation", "integrate SMS verification", "add payment integration", "uber eats style delivery", "rider tracking feature", "vendor dashboard analytics", "loyalty program", "push notifications", "two-factor authentication"
+   - If the attached file contains software feature requirements
 
 2. IRRELEVANT - OUT OF SCOPE (set "is_vague_or_irrelevant" to TRUE):
-   - Asking for estimates of completely unrelated products or platforms
-   - Examples: "I want an expense calculator iOS app", "build me an AI services website", "create a hospital management system", "I need an e-commerce store for clothes", "build a fitness tracking app"
-   - These are NOT related to Enatega or food delivery platforms
+   - Asking to build a completely separate, standalone product unrelated to any delivery/platform system
+   - Examples: "build me a standalone hospital management system from scratch", "create a fitness tracking app unrelated to delivery"
+   - Only mark TRUE if it is clearly a completely different standalone product
 
 3. VAGUE/IRRELEVANT (set "is_vague_or_irrelevant" to TRUE):
    - Greetings, general questions, or file references with no feature details
    - Examples: "hello", "how are you", "see attached file", "requirements in document"
 
-IMPORTANT: Only return FALSE if the query is about features for a food delivery / Enatega-type platform. Everything else is TRUE.
+IMPORTANT: When in doubt, return FALSE (relevant). Any software feature that could be integrated into a platform should be considered relevant.
 
 Respond with ONLY a JSON object:
 {{
